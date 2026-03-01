@@ -1,5 +1,6 @@
 import RouteOverlay from './RouteOverlay'
 import LorryIcon from '../../pages/Transporter/LorryIcon'
+import LocationPinIcon from '../../pages/Transporter/LocationPinIcon'
 import { getShipmentDetails, projectCoordinates } from '../../pages/Transporter/shipmentUtils'
 
 function FleetMap({ shipments = {} }) {
@@ -28,11 +29,20 @@ function FleetMap({ shipments = {} }) {
         {points.map((point) => (
           <span
             key={point.id}
-            className={`fleet-marker ${point.isDelayed ? 'delayed' : ''}`.trim()}
+            className={`fleet-marker ${point.isDelayed ? 'delayed' : ''} ${point.isDelivered ? 'fleet-marker--lorry' : 'fleet-marker--location'}`.trim()}
             style={{ left: `${point.x}%`, top: `${point.y}%` }}
             title={`${point.id} | ${point.partnerName} | ${point.assignmentStatus} | ${point.status}`}
           >
-            <LorryIcon className="lorry-icon" title="Live vehicle" />
+            {point.isDelivered ? (
+              <LorryIcon className="fleet-marker-lorry-icon" title="Delivered shipment vehicle" />
+            ) : (
+              <LocationPinIcon
+                className="fleet-marker-location-icon"
+                color={point.isDelayed ? '#ef4444' : '#0ea5e9'}
+                size={22}
+                title="Shipment location"
+              />
+            )}
           </span>
         ))}
       </div>

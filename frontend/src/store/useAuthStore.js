@@ -9,6 +9,24 @@ const defaultState = {
   token: null,
 }
 
+function normalizeDisplayName(name, fallback = 'User') {
+  const text = String(name || '').trim()
+  if (!text) {
+    return fallback
+  }
+  return text.toLowerCase().startsWith('default ') ? text.slice(8).trim() : text
+}
+
+function normalizeUser(user) {
+  if (!user || typeof user !== 'object') {
+    return user
+  }
+  return {
+    ...user,
+    name: normalizeDisplayName(user.name, 'User'),
+  }
+}
+
 function readPersistedState() {
   if (typeof window === 'undefined') {
     return defaultState
@@ -24,6 +42,7 @@ function readPersistedState() {
     return {
       ...defaultState,
       ...parsed,
+      user: normalizeUser(parsed?.user),
     }
   } catch {
     return defaultState
@@ -80,7 +99,7 @@ export function useAuthStore(selector = selectAuthState) {
 
 export function setUserSession({ user, role }) {
   setAuthState({
-    user: user || null,
+    user: normalizeUser(user || null),
     role: role || null,
     isGuest: false,
     token: user?.token || null,
@@ -90,7 +109,7 @@ export function setUserSession({ user, role }) {
 export function enterGuest(role = 'Guest', name = 'Guest User') {
   setAuthState({
     user: {
-      name: name || 'Guest User',
+      name: normalizeDisplayName(name || 'Guest User', 'Guest User'),
       email: 'guest@example.com',
       isGuest: true,
     },

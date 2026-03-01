@@ -898,3 +898,60 @@ button { appearance: none; cursor: pointer; font-family: var(--font-body); }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Ordered login steps */
+.auth-stepper {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.auth-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.45);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.auth-step-index {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(148, 163, 184, 0.25);
+  color: #cbd5e1;
+}
+
+.auth-step-done {
+  border-color: rgba(34, 211, 238, 0.45);
+  color: #67e8f9;
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.auth-step-done .auth-step-index {
+  background: rgba(34, 211, 238, 0.35);
+  color: #ecfeff;
+}
+
+.auth-step-active {
+  border-color: rgba(20, 184, 166, 0.5);
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.12);
+}
+
+.auth-step-active .auth-step-index {
+  background: rgba(20, 184, 166, 0.35);
+  color: #f0fdfa;
+}

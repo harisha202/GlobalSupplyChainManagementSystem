@@ -1,24 +1,37 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { trackingApi } from '../../api/axiosInstance'
 import { connectGpsSocket, disconnectGpsSocket } from '../../api/socket'
 import PieChart from '../../components/charts/PieChart'
 import Loader from '../../components/common/Loader'
 import Table from '../../components/common/Table'
 import DashboardLayout from '../../components/layout/DashboardLayout'
-import FleetMap from '../../components/maps/FleetMap'
 import GPSMap from './GPSMap'
 import Analytics from './Analytics'
 import Shipments from './Shipment'
 import FleetManager from './FleetManager'
+import {
+  buildTransportAlerts,
+  computeTransportMetrics,
+  normalizeAnalyticsPayload,
+  toShipmentRows,
+} from './shipmentUtils'
 import './transporter.css'
 
-function mapShipmentsToRows(shipments = {}) {
-  return Object.entries(shipments).map(([shipmentId, item]) => ({
-    vehicle: shipmentId,
-    route: `${item.lat?.toFixed?.(2) ?? item.lat}, ${item.lng?.toFixed?.(2) ?? item.lng}`,
-    eta: '--',
-    status: String(item.status ?? 'unknown').replace('_', ' '),
+function mapShipmentsToRows(rows = []) {
+  return rows.map((item) => ({
+    vehicle: item.vehicleNumber || item.id,
+    route: item.hasGps ? `${item.lat.toFixed(2)}, ${item.lng.toFixed(2)}` : 'Signal unavailable',
+    eta: item.eta,
+    status: item.status,
   }))
+}
+
+function formatAlertTimestamp(value) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Live'
+  }
+  return parsed.toLocaleString()
 }
 
 function TransporterDashboard({
@@ -30,12 +43,27 @@ function TransporterDashboard({
 }) {
   const [shipments, setShipments] = useState({})
   const [isLoading, setIsLoading] = useState(true)
-  const [analyticsPayload, setAnalyticsPayload] = useState({
-    deliveryTrends: [],
-    statusData: [],
-    forecast: { today: 0, projected: 0, trend: '+0%', series: [] },
-  })
+  const [analyticsPayload, setAnalyticsPayload] = useState({})
+  const [alerts, setAlerts] = useState([])
+  const [isSocketConnected, setIsSocketConnected] = useState(false)
+  const [lastSocketUpdate, setLastSocketUpdate] = useState('')
   const [activeView, setActiveView] = useState(initialView)
+
+  const applyTransportPayload = useCallback(
+    ({ shipments: nextShipments = {}, analytics = {}, alerts: nextAlerts = [], generatedAt = '' }) => {
+      setShipments(nextShipments)
+      setAnalyticsPayload(normalizeAnalyticsPayload(analytics, nextShipments, '7d'))
+      if (Array.isArray(nextAlerts) && nextAlerts.length) {
+        setAlerts(nextAlerts)
+      } else {
+        setAlerts(buildTransportAlerts(nextShipments))
+      }
+      if (generatedAt) {
+        setLastSocketUpdate(generatedAt)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     let mounted = true
@@ -47,14 +75,12 @@ function TransporterDashboard({
           trackingApi.analytics('7d'),
         ])
         if (mounted) {
-          setShipments(payload?.shipments ?? {})
-          setAnalyticsPayload(
-            analyticsRes ?? {
-              deliveryTrends: [],
-              statusData: [],
-              forecast: { today: 0, projected: 0, trend: '+0%', series: [] },
-            },
-          )
+          const nextShipments = payload?.shipments ?? {}
+          applyTransportPayload({
+            shipments: nextShipments,
+            analytics: analyticsRes ?? {},
+            alerts: buildTransportAlerts(nextShipments),
+          })
         }
       } finally {
         if (mounted) {
@@ -66,36 +92,58 @@ function TransporterDashboard({
     loadGps()
 
     connectGpsSocket({
+      onOpen: () => {
+        if (mounted) {
+          setIsSocketConnected(true)
+        }
+      },
+      onClose: () => {
+        if (mounted) {
+          setIsSocketConnected(false)
+        }
+      },
       onMessage: (event) => {
-        if (event?.type === 'gps:update' && mounted) {
-          setShipments(event.shipments ?? {})
+        if (!mounted || !event || typeof event !== 'object') {
+          return
+        }
+        if (event.type === 'gps:update' || event.shipments) {
+          applyTransportPayload({
+            shipments: event.shipments ?? {},
+            analytics: event.analytics ?? {},
+            alerts: Array.isArray(event.alerts) ? event.alerts : [],
+            generatedAt: event.generatedAt ?? '',
+          })
         }
       },
     })
 
     return () => {
       mounted = false
+      setIsSocketConnected(false)
       disconnectGpsSocket()
     }
-  }, [])
+  }, [applyTransportPayload])
 
   useEffect(() => {
     setActiveView(initialView)
   }, [initialView])
 
-  const rows = useMemo(() => mapShipmentsToRows(shipments), [shipments])
-  const inTransitCount = rows.filter((row) =>
-    row.status.toLowerCase().includes('in transit'),
-  ).length
-  const delayedCount = rows.filter((row) =>
-    row.status.toLowerCase().includes('delay'),
-  ).length
+  const shipmentRows = useMemo(() => toShipmentRows(shipments), [shipments])
+  const rows = useMemo(() => mapShipmentsToRows(shipmentRows), [shipmentRows])
+  const metrics = useMemo(() => computeTransportMetrics(shipments), [shipments])
+  const normalizedAnalytics = useMemo(
+    () => normalizeAnalyticsPayload(analyticsPayload, shipments, '7d'),
+    [analyticsPayload, shipments],
+  )
+  const alertFeed = useMemo(() => (alerts.length ? alerts : buildTransportAlerts(shipments)), [alerts, shipments])
+
   const stats = [
-    { label: 'Vehicles Active', value: rows.length, trend: 'Live backend feed' },
-    { label: 'On-Time Deliveries', value: `${Math.max(0, rows.length - delayedCount)}`, trend: 'Live count' },
-    { label: 'Delayed Routes', value: delayedCount, trend: 'Live count' },
-    { label: 'Fleet In Transit', value: inTransitCount, trend: 'Live count' },
-    { label: 'Live GPS Pings', value: rows.length * 30, trend: 'Approx stream' },
+    { label: 'Vehicles Active', value: metrics.activeVehicles, trend: isSocketConnected ? 'WebSocket live' : 'API snapshot' },
+    { label: 'On-Time Deliveries', value: metrics.onTimeDeliveries, trend: `${100 - metrics.delayRate}% healthy` },
+    { label: 'Delayed Routes', value: metrics.delayed, trend: 'Live alert source' },
+    { label: 'Fleet In Transit', value: metrics.inTransit, trend: 'Live shipment state' },
+    { label: 'Live GPS Pings', value: metrics.liveGpsPings, trend: 'Approx stream rate' },
+    { label: 'GPS Offline', value: metrics.gpsOffline, trend: 'Needs follow-up' },
   ]
 
   return (
@@ -107,13 +155,12 @@ function TransporterDashboard({
       onNavigate={onNavigate}
       currentPath={currentPath}
       stats={stats}
-      notifications={5}
+      notifications={alertFeed.length}
     >
       {activeView === 'overview' && (
         <>
-          <FleetMap shipments={shipments} />
           <section
-            style={{ display: 'grid', gap: 12, gridTemplateColumns: '2fr 1fr', marginTop: 12 }}
+            style={{ display: 'grid', gap: 12, gridTemplateColumns: '2fr 1fr' }}
           >
             {isLoading ? (
               <Loader label="Loading live GPS data..." />
@@ -131,22 +178,50 @@ function TransporterDashboard({
             )}
             <PieChart
               title="Fleet Status"
-              data={[
-                { label: 'In Transit', value: inTransitCount, color: '#0ea5e9' },
-                { label: 'Delayed', value: delayedCount, color: '#f97316' },
-                {
-                  label: 'Other',
-                  value: Math.max(rows.length - inTransitCount - delayedCount, 0),
-                  color: '#64748b',
-                },
-              ]}
+              data={normalizedAnalytics.statusData}
             />
+          </section>
+          <section className="card" style={{ marginTop: 12 }}>
+            <div className="shipments-header">
+              <h4 className="card-title">Live Alerts</h4>
+              <div className="shipments-controls">
+                <span className={`tracking-chip ${isSocketConnected ? 'live' : 'offline'}`}>
+                  {isSocketConnected ? 'WebSocket live' : 'WebSocket reconnecting'}
+                </span>
+                <span className="tracking-chip">
+                  {alertFeed.length} Active | Last sync: {lastSocketUpdate ? formatAlertTimestamp(lastSocketUpdate) : '--'}
+                </span>
+              </div>
+            </div>
+            {!alertFeed.length && (
+              <p className="muted" style={{ margin: 0 }}>
+                No active transporter alerts. All shipments look healthy.
+              </p>
+            )}
+            {!!alertFeed.length && (
+              <div className="tracking-feedback-list">
+                {alertFeed.map((alert) => (
+                  <article key={alert.id} className="tracking-feedback-item">
+                    <div className="tracking-feedback-head">
+                      <strong>{alert.title}</strong>
+                      <span className={`assignment-chip ${alert.severity === 'critical' ? 'pending' : 'assigned'}`}>
+                        {String(alert.severity || 'info').toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="tracking-feedback-note">{alert.message}</p>
+                    <p className="tracking-feedback-note">
+                      Shipment: {alert.shipmentId || '--'} | {formatAlertTimestamp(alert.timestamp)}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
         </>
       )}
       {activeView === 'map' && <GPSMap shipments={shipments} />}
       {activeView === 'analytics' && (
-        <Analytics shipments={shipments} analyticsData={analyticsPayload} />
+        <Analytics shipments={shipments} analyticsData={normalizedAnalytics} />
       )}
       {activeView === 'fleet' && <FleetManager shipments={shipments} />}
       {activeView === 'shipments' && <Shipments shipments={shipments} />}

@@ -189,3 +189,21 @@ def check_database_connection() -> dict:
             return {"ok": True, "path": str(_db_path())}
     except sqlite3.Error as exc:
         raise DatabaseError("Database connectivity check failed") from exc
+
+
+def count_users() -> int:
+    try:
+        with _connect() as conn:
+            row = conn.execute("SELECT COUNT(*) AS total FROM users").fetchone()
+            return int(row["total"] if row else 0)
+    except sqlite3.Error as exc:
+        raise DatabaseError("Failed to count users") from exc
+
+
+def count_guest_entries() -> int:
+    try:
+        with _connect() as conn:
+            row = conn.execute("SELECT COUNT(*) AS total FROM guest_entries").fetchone()
+            return int(row["total"] if row else 0)
+    except sqlite3.Error as exc:
+        raise DatabaseError("Failed to count guest entries") from exc

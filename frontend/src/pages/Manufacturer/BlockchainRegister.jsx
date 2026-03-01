@@ -2,6 +2,25 @@ import { useState } from 'react'
 import BlockchainBadge from '../../components/blockchain/BlockchainBadge'
 import Table from '../../components/common/Table'
 
+function normalizeBlockchainRows(batches = []) {
+  return batches.map((item, index) => {
+    const batchId = item.batchId || item.batch_id || `BATCH-${index + 1}`
+    const status = String(item.status || '').toLowerCase()
+    const hasLedgerHash = Boolean(item.ledger_hash || item.blockchainHash)
+    const verified = item.verified ?? (hasLedgerHash && status !== 'created')
+
+    return {
+      batchId,
+      productName: item.productName || item.product_name || item.sku || item.product_sku || `Batch ${index + 1}`,
+      quantity: Number(item.quantity || 0),
+      blockchainHash: item.ledger_hash || item.blockchainHash || 'Pending',
+      timestamp: item.timestamp || item.created_at || '--',
+      verified: Boolean(verified),
+      transactionId: item.transactionId || item.txHash || item.ledger_hash?.slice(0, 12) || '--',
+    }
+  })
+}
+
 function BlockchainRegister({ batches = [] }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [showRegisterForm, setShowRegisterForm] = useState(false)
@@ -11,51 +30,7 @@ function BlockchainRegister({ batches = [] }) {
     quantity: '',
   })
 
-  const mockBlockchainData = [
-    {
-      batchId: 'BATCH-2024-001',
-      productName: 'N95 Mask Box (50pcs)',
-      quantity: 500,
-      blockchainHash: '0x7a8f9b2c...3d4e5f6a',
-      timestamp: '2024-02-14 10:32:15',
-      verified: true,
-      transactionId: 'TXN-BC-001',
-    },
-    {
-      batchId: 'BATCH-2024-002',
-      productName: 'IV Set Standard',
-      quantity: 300,
-      blockchainHash: '0x2b3c4d5e...6f7a8b9c',
-      timestamp: '2024-02-15 14:22:48',
-      verified: true,
-      transactionId: 'TXN-BC-002',
-    },
-    {
-      batchId: 'BATCH-2024-003',
-      productName: 'Disposable Syringe 10ml',
-      quantity: 1000,
-      blockchainHash: 'Pending...',
-      timestamp: '--',
-      verified: false,
-      transactionId: '--',
-    },
-    {
-      batchId: 'BATCH-2024-004',
-      productName: 'Nitrile Gloves (100pcs)',
-      quantity: 800,
-      blockchainHash: '0x4d5e6f7a...8b9c0d1e',
-      timestamp: '2024-02-12 09:15:33',
-      verified: true,
-      transactionId: 'TXN-BC-004',
-    },
-  ]
-
-  const displayData = batches.length > 0
-    ? batches.map((b, i) => ({
-        ...mockBlockchainData[i % mockBlockchainData.length],
-        batchId: b.batchId || b.batch_id,
-      }))
-    : mockBlockchainData
+  const displayData = normalizeBlockchainRows(batches)
 
   const filteredData = displayData.filter((item) =>
     item.batchId.toLowerCase().includes(searchTerm.toLowerCase()) ||

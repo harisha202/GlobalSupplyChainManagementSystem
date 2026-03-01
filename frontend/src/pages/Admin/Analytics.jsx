@@ -132,21 +132,13 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
           <h2 style={{ fontSize: 24, fontWeight: 'bold', margin: 0 }}>Analytics Dashboard</h2>
           <p style={{ color: '#6b7280', margin: '4px 0 0 0' }}>Platform performance and insights</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="admin-range-selector">
           {['7d', '30d', '90d', '1y'].map((range) => (
             <button
               key={range}
+              type="button"
               onClick={() => setTimeRange(range)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 8,
-                border: 'none',
-                fontWeight: 500,
-                cursor: 'pointer',
-                background: timeRange === range ? '#3b82f6' : '#f3f4f6',
-                color: timeRange === range ? 'white' : '#374151',
-                transition: 'all 0.2s',
-              }}
+              className={`admin-range-btn ${timeRange === range ? 'active' : ''}`}
             >
               {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : '1 Year'}
             </button>

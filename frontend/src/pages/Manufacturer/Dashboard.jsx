@@ -11,8 +11,8 @@ import BlockchainRegister from './BlockchainRegister'
 import Analytics from './Analytics'
 import './manufacturer.css'
 
-const productionHistory = [120, 132, 140, 155, 161, 169]
-const projected = forecastDemand(productionHistory, 3)
+const baseHistory = [0, 0, 0, 0, 0, 0]
+const projected = forecastDemand(baseHistory, 3)
 
 function ManufacturerDashboard({
   user,
@@ -22,11 +22,11 @@ function ManufacturerDashboard({
   initialView = 'overview',
 }) {
   const [isLoading, setIsLoading] = useState(true)
-  const [forecastSeries, setForecastSeries] = useState([...productionHistory, ...projected])
+  const [forecastSeries, setForecastSeries] = useState([...baseHistory, ...projected])
   const [rows, setRows] = useState([])
   const [products, setProducts] = useState([])
   const [analyticsPayload, setAnalyticsPayload] = useState({
-    forecastSeries: [...productionHistory, ...projected],
+    forecastSeries: [...baseHistory, ...projected],
     efficiencyTrend: [],
     defectTrend: [],
     categoryProduction: [],
@@ -40,7 +40,7 @@ function ManufacturerDashboard({
     async function loadData() {
       try {
         const [aiPayload, batchPayload, productPayload, analyticsRes] = await Promise.all([
-          manufacturerApi.aiForecast(productionHistory.join(','), 3),
+          manufacturerApi.aiForecast('', 3),
           manufacturerApi.batches(),
           manufacturerApi.products(),
           manufacturerApi.analytics(),
@@ -52,11 +52,18 @@ function ManufacturerDashboard({
 
         const analyticsSeries = analyticsRes?.forecastSeries ?? []
         const forecast = aiPayload?.forecast ?? projected
-        const resolvedSeries = analyticsSeries.length ? analyticsSeries : [...productionHistory, ...forecast]
+        const historySeries = Array.isArray(aiPayload?.history) && aiPayload.history.length
+          ? aiPayload.history
+          : baseHistory
+        const resolvedSeries = analyticsSeries.length ? analyticsSeries : [...historySeries, ...forecast]
         const apiRows = (batchPayload?.items ?? []).map((item) => ({
-          batchId: item.batch_id,
-          sku: item.product_sku,
-          status: item.status,
+          batchId: item.batch_id || item.batchId,
+          sku: item.product_sku || item.sku,
+          quantity: Number(item.quantity || 0),
+          status: item.status || 'created',
+          startDate: item.startDate || item.created_at || '--',
+          endDate: item.endDate || '--',
+          qcStatus: item.qcStatus || (item.status === 'completed' ? 'passed' : 'pending'),
         }))
         const apiProducts = productPayload?.items ?? []
 
@@ -92,19 +99,21 @@ function ManufacturerDashboard({
     setActiveView(initialView)
   }, [initialView])
 
+  const avgDefectRate = analyticsPayload?.stats?.avgDefectRate || '0%'
+
   const stats = useMemo(
     () => [
       { label: 'Batches Today', value: rows.length, trend: '' },
-      { label: 'Output Units', value: 169, trend: '+4.9%' },
-      { label: 'Defect Rate', value: '1.8%', trend: '-0.2%' },
-      { label: 'Pending Dispatch', value: 11, trend: '+2' },
+      { label: 'Output Units', value: rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0), trend: 'Live' },
+      { label: 'Defect Rate', value: avgDefectRate, trend: 'Live' },
+      { label: 'Pending Dispatch', value: rows.filter((row) => String(row.status).toLowerCase() !== 'completed').length, trend: 'Live' },
       {
         label: 'Forecast Next Cycle',
         value: forecastSeries.at(-1) ?? 0,
         trend: 'AI estimate',
       },
     ],
-    [rows.length, forecastSeries],
+    [rows, forecastSeries, avgDefectRate],
   )
 
   return (
@@ -132,6 +141,7 @@ function ManufacturerDashboard({
               columns={[
                 { key: 'batchId', label: 'Batch ID' },
                 { key: 'sku', label: 'SKU' },
+                { key: 'quantity', label: 'Qty' },
                 { key: 'status', label: 'Status' },
               ]}
               rows={rows}

@@ -38,6 +38,19 @@ def _category_from_sku(sku: str) -> str:
     return "First Aid"
 
 
+def _production_history(points: int = 6) -> list[float]:
+    recent_batches = [float(item.get("quantity", 0)) for item in batches[-points:]]
+    if recent_batches:
+        return recent_batches
+
+    total_units = sum(float(item.get("quantity", 0)) for item in products)
+    if total_units <= 0:
+        return [0.0 for _ in range(points)]
+
+    weights = [0.68, 0.76, 0.84, 0.91, 0.97, 1.0]
+    return [round(total_units * weights[idx] / points, 2) for idx in range(points)]
+
+
 @router.post("/products", dependencies=[Depends(require_roles(UserRole.admin, UserRole.manufacturer))])
 def create_product(data: ProductCreateRequest) -> dict:
     if any(item["sku"] == data.sku for item in products):
@@ -105,19 +118,19 @@ def list_batches() -> dict:
 
 @router.get("/ai-forecast", dependencies=[Depends(require_roles(UserRole.admin, UserRole.manufacturer))])
 def ai_forecast(
-    history: str = Query("80,95,110,132,141,150"),
+    history: str = Query(""),
     horizon: int = Query(3, ge=1, le=12),
 ) -> dict:
-    values = [float(value.strip()) for value in history.split(",") if value.strip()]
+    values = [float(value.strip()) for value in str(history).split(",") if value.strip()]
+    if not values:
+        values = _production_history(points=6)
     forecast = predict_demand(values, horizon=horizon)
     return {"history": values, "forecast": forecast}
 
 
 @router.get("/analytics", dependencies=[Depends(require_roles(UserRole.admin, UserRole.manufacturer))])
 def analytics() -> dict:
-    history = [float(item.get("quantity", 0)) for item in batches[-6:]]
-    if not history:
-        history = [80.0, 95.0, 110.0, 132.0, 141.0, 150.0]
+    history = _production_history(points=6)
 
     forecast = predict_demand(history, horizon=3)
     forecast_series = [int(round(value)) for value in [*history, *forecast]]

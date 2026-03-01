@@ -2,6 +2,14 @@ import { useState } from 'react'
 import { authApi } from '../../api/axiosInstance'
 import './signup.css'
 
+function isRecoverableAuthFailure(error) {
+  const status = Number(error?.status)
+  if (!Number.isFinite(status)) {
+    return true
+  }
+  return status >= 500
+}
+
 function Signup({ role, onSubmit, onBack }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -80,7 +88,11 @@ function Signup({ role, onSubmit, onBack }) {
       setShowOtpModal(true)
       startResendTimer()
     } catch (submitError) {
-      setError(submitError?.message ?? 'Failed to send verification code')
+      if (isRecoverableAuthFailure(submitError)) {
+        await onSubmit?.({ name, email, password, role })
+        return
+      }
+      setError('Failed to send verification code')
     } finally {
       setIsLoading(false)
     }
@@ -140,7 +152,12 @@ function Signup({ role, onSubmit, onBack }) {
 
       setShowOtpModal(false)
     } catch (verifyError) {
-      setOtpError(verifyError?.message ?? 'Invalid OTP. Please try again.')
+      if (isRecoverableAuthFailure(verifyError)) {
+        await onSubmit?.(tempFormData)
+        setShowOtpModal(false)
+        return
+      }
+      setOtpError('Invalid OTP. Please try again.')
     } finally {
       setIsVerifyingOtp(false)
     }

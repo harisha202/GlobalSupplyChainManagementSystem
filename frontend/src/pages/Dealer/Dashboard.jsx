@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { dealerApi } from '../../api/axiosInstance'
 import PieChart from '../../components/charts/PieChart'
 import AreaChart from '../../components/charts/AreaChart'
@@ -8,47 +8,91 @@ import DashboardLayout from '../../components/layout/DashboardLayout'
 
 import './dealer.css'
 
+function parseCurrency(value) {
+  const parsed = Number(String(value || '').replace(/[^0-9.-]/g, ''))
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatCurrency(value) {
+  return `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+}
+
+function mapOrderStatus(status) {
+  const normalized = String(status || '').toLowerCase()
+  if (normalized.includes('deliver')) return 'Delivered'
+  if (normalized.includes('dispatch') || normalized.includes('transit')) return 'Dispatched'
+  return 'Pending'
+}
+
+function mapShipmentStatus(status) {
+  const normalized = String(status || '').toLowerCase()
+  if (normalized.includes('delay')) return 'Delayed'
+  if (normalized.includes('arriv')) return 'Arriving Today'
+  if (normalized.includes('receiv') || normalized.includes('deliver')) return 'Received'
+  return 'In Transit'
+}
+
+function normalizeOrders(items = []) {
+  return items.map((order, index) => ({
+    orderId: order.orderId || `DL-${3300 + index + 1}`,
+    retailer: order.retailer || 'Retail Partner',
+    amount: formatCurrency(parseCurrency(order.amount)),
+    amountValue: parseCurrency(order.amount),
+    status: mapOrderStatus(order.status),
+    date: order.date || new Date().toISOString().slice(0, 10),
+  }))
+}
+
+function normalizeShipments(items = []) {
+  return items.map((shipment, index) => ({
+    shipmentId: shipment.shipmentId || `SHP-${index + 1}`,
+    status: mapShipmentStatus(shipment.status),
+  }))
+}
+
 function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
   const [loading, setLoading] = useState(true)
-  const stats = [
-    { label: 'Wholesale Orders', value: 88, trend: '+9%' },
-    { label: 'Inbound Loads', value: 13, trend: '+3' },
-    { label: 'Payment Pending', value: 7, trend: '-2' },
-    { label: 'Fast-moving SKUs', value: 19, trend: '+4' },
-    { label: 'Avg Margin', value: '14.2%', trend: '+0.8%' },
-  ]
-
   const [recentOrders, setRecentOrders] = useState([])
   const [orderTrends, setOrderTrends] = useState([])
   const [lowStock, setLowStock] = useState([])
+  const [inboundShipments, setInboundShipments] = useState([])
   const [activeView, setActiveView] = useState('overview')
 
   useEffect(() => {
     let mounted = true
+
     async function loadDealerData() {
       try {
-        const [ordersRes, trendsRes, stockRes] = await Promise.all([
+        const [ordersRes, trendsRes, stockRes, arrivalsRes] = await Promise.all([
           dealerApi.recentOrders(),
           dealerApi.orderTrends(),
           dealerApi.lowStockAlerts(),
+          dealerApi.arrivals(),
         ])
+
         if (mounted) {
-          setRecentOrders(ordersRes.orders || getMockOrders())
-          setOrderTrends(trendsRes.trends || [42, 38, 45, 52, 49, 58, 63])
-          setLowStock(stockRes.items || [])
+          setRecentOrders(normalizeOrders(ordersRes?.orders || []))
+          setOrderTrends(Array.isArray(trendsRes?.trends) ? trendsRes.trends : [])
+          setLowStock(Array.isArray(stockRes?.items) ? stockRes.items : [])
+          setInboundShipments(normalizeShipments(arrivalsRes?.shipments || []))
         }
       } catch (error) {
         console.error('Error loading dealer data:', error)
         if (mounted) {
-          setRecentOrders(getMockOrders())
-          setOrderTrends([42, 38, 45, 52, 49, 58, 63])
+          setRecentOrders([])
+          setOrderTrends([])
+          setLowStock([])
+          setInboundShipments([])
         }
       } finally {
         if (mounted) setLoading(false)
       }
     }
+
     loadDealerData()
-    return () => { mounted = false }
+    return () => {
+      mounted = false
+    }
   }, [])
 
   useEffect(() => {
@@ -63,13 +107,30 @@ function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
     setActiveView(pathViewMap[currentPath] ?? 'overview')
   }, [currentPath])
 
-  const getMockOrders = () => [
-    { orderId: 'DL-3321', retailer: 'Nova Med', amount: '$2,460', status: 'Dispatched', date: '2026-02-15' },
-    { orderId: 'DL-3322', retailer: 'CareHub', amount: '$1,810', status: 'Pending', date: '2026-02-14' },
-    { orderId: 'DL-3323', retailer: 'Prime Labs', amount: '$4,105', status: 'Delivered', date: '2026-02-13' },
-    { orderId: 'DL-3324', retailer: 'HealthFirst', amount: '$3,250', status: 'Dispatched', date: '2026-02-12' },
-    { orderId: 'DL-3325', retailer: 'MediCare Plus', amount: '$1,980', status: 'Pending', date: '2026-02-11' },
-  ]
+  const orderStatusData = useMemo(() => [
+    { label: 'Delivered', value: recentOrders.filter((o) => o.status === 'Delivered').length, color: '#22c55e' },
+    { label: 'Dispatched', value: recentOrders.filter((o) => o.status === 'Dispatched').length, color: '#0ea5e9' },
+    { label: 'Pending', value: recentOrders.filter((o) => o.status === 'Pending').length, color: '#f59e0b' },
+  ], [recentOrders])
+
+  const shipmentSummary = useMemo(() => ({
+    inTransit: inboundShipments.filter((s) => s.status === 'In Transit').length,
+    arrivingToday: inboundShipments.filter((s) => s.status === 'Arriving Today').length,
+    delayed: inboundShipments.filter((s) => s.status === 'Delayed').length,
+  }), [inboundShipments])
+
+  const stats = useMemo(() => {
+    const totalAmount = recentOrders.reduce((sum, order) => sum + order.amountValue, 0)
+    const avgOrderValue = recentOrders.length ? totalAmount / recentOrders.length : 0
+
+    return [
+      { label: 'Wholesale Orders', value: recentOrders.length, trend: 'Live' },
+      { label: 'Inbound Loads', value: inboundShipments.length, trend: 'Live' },
+      { label: 'Payment Pending', value: orderStatusData[2].value, trend: 'Live' },
+      { label: 'Low Stock Alerts', value: lowStock.length, trend: 'Live' },
+      { label: 'Avg Order Value', value: formatCurrency(avgOrderValue), trend: 'Live' },
+    ]
+  }, [recentOrders, inboundShipments, orderStatusData, lowStock])
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -77,22 +138,25 @@ function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
       Dispatched: { bg: '#dbeafe', color: '#1e40af' },
       Pending: { bg: '#fef3c7', color: '#92400e' },
     }
+
     const style = styles[status] || styles.Pending
     return (
-      <span style={{
-        padding: '4px 12px',
-        borderRadius: 9999,
-        fontSize: 12,
-        fontWeight: 600,
-        background: style.bg,
-        color: style.color,
-      }}>
+      <span
+        style={{
+          padding: '4px 12px',
+          borderRadius: 9999,
+          fontSize: 12,
+          fontWeight: 600,
+          background: style.bg,
+          color: style.color,
+        }}
+      >
         {status}
       </span>
     )
   }
 
-  const orderRows = recentOrders.map(order => ({
+  const orderRows = recentOrders.map((order) => ({
     orderId: <span style={{ fontWeight: 600, color: '#3b82f6' }}>{order.orderId}</span>,
     retailer: order.retailer,
     amount: <span style={{ fontWeight: 600 }}>{order.amount}</span>,
@@ -101,9 +165,7 @@ function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
   }))
 
   const navigateTo = (path, event) => {
-    if (event?.preventDefault) {
-      event.preventDefault()
-    }
+    if (event?.preventDefault) event.preventDefault()
 
     if (onNavigate) {
       onNavigate(path)
@@ -156,65 +218,35 @@ function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
       stats={stats}
       notifications={1}
     >
-      {/* Navigation Tabs */}
       <div className="dealer-tabs">
-        <button
-          type="button"
-          className={`dealer-tab ${activeView === 'overview' ? 'active' : ''}`}
-          onClick={() => handleViewChange('overview')}
-        >
+        <button type="button" className={`dealer-tab ${activeView === 'overview' ? 'active' : ''}`} onClick={() => handleViewChange('overview')}>
           Overview
         </button>
-        <button
-          type="button"
-          className={`dealer-tab ${activeView === 'orders' ? 'active' : ''}`}
-          onClick={() => handleViewChange('orders')}
-        >
+        <button type="button" className={`dealer-tab ${activeView === 'orders' ? 'active' : ''}`} onClick={() => handleViewChange('orders')}>
           Orders
         </button>
-        <button
-          type="button"
-          className={`dealer-tab ${activeView === 'arrivals' ? 'active' : ''}`}
-          onClick={() => handleViewChange('arrivals')}
-        >
+        <button type="button" className={`dealer-tab ${activeView === 'arrivals' ? 'active' : ''}`} onClick={() => handleViewChange('arrivals')}>
           Arrivals
         </button>
-        <button
-          type="button"
-          className={`dealer-tab ${activeView === 'inventory' ? 'active' : ''}`}
-          onClick={() => handleViewChange('inventory')}
-        >
+        <button type="button" className={`dealer-tab ${activeView === 'inventory' ? 'active' : ''}`} onClick={() => handleViewChange('inventory')}>
           Inventory
         </button>
-        <button
-          type="button"
-          className={`dealer-tab ${activeView === 'analytics' ? 'active' : ''}`}
-          onClick={() => handleViewChange('analytics')}
-        >
+        <button type="button" className={`dealer-tab ${activeView === 'analytics' ? 'active' : ''}`} onClick={() => handleViewChange('analytics')}>
           Analytics
         </button>
       </div>
 
-      {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 24, fontWeight: 'bold', margin: 0 }}>Dealer Dashboard</h2>
-        <p style={{ color: '#6b7280', margin: '4px 0 0 0' }}>
-          Manage wholesale orders and inventory
-        </p>
+        <p style={{ color: '#6b7280', margin: '4px 0 0 0' }}>Manage wholesale orders and inventory</p>
       </div>
 
-      {/* Main Grid */}
       <section style={{ display: 'grid', gap: 24, gridTemplateColumns: '2fr 1fr', marginBottom: 24 }}>
-        {/* Recent Orders Table */}
         <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Recent Wholesale Orders</h3>
-            <a
-              href="/dealer/orders"
-              onClick={(event) => navigateTo('/dealer/orders', event)}
-              style={{ fontSize: 14, color: '#3b82f6', textDecoration: 'none' }}
-            >
-              View All →
+            <a href="/dealer/orders" onClick={(event) => navigateTo('/dealer/orders', event)} style={{ fontSize: 14, color: '#3b82f6', textDecoration: 'none' }}>
+              View All -&gt;
             </a>
           </div>
           <Table
@@ -230,25 +262,13 @@ function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
           />
         </div>
 
-        {/* Order Status Pie Chart */}
         <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <PieChart
-            title="Order Status"
-            data={[
-              { label: 'Delivered', value: 45, color: '#22c55e' },
-              { label: 'Dispatched', value: 30, color: '#0ea5e9' },
-              { label: 'Pending', value: 13, color: '#f59e0b' },
-            ]}
-          />
+          <PieChart title="Order Status" data={orderStatusData} />
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { label: 'Delivered', value: 45, color: '#22c55e' },
-              { label: 'Dispatched', value: 30, color: '#0ea5e9' },
-              { label: 'Pending', value: 13, color: '#f59e0b' },
-            ].map((item, index) => (
-              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+            {orderStatusData.map((item) => (
+              <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 12, height: 12, borderRadius: '50%', background: item.color }}></div>
+                  <div style={{ width: 12, height: 12, borderRadius: '50%', background: item.color }} />
                   <span>{item.label}</span>
                 </div>
                 <span style={{ fontWeight: 600 }}>{item.value} orders</span>
@@ -258,109 +278,42 @@ function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
         </div>
       </section>
 
-      {/* Order Trends and Quick Actions */}
       <section style={{ display: 'grid', gap: 24, gridTemplateColumns: '2fr 1fr', marginBottom: 24 }}>
-        {/* Order Trends Chart */}
         <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Order Trends (Last 7 Days)</h3>
-          <AreaChart
-            title="Daily Orders"
-            data={orderTrends}
-            height={200}
-          />
+          <AreaChart title="Daily Orders" data={orderTrends} height={200} />
         </div>
 
-        {/* Quick Actions */}
         <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Quick Actions</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <a
-              href="/dealer/orders"
-              onClick={(event) => navigateTo('/dealer/orders', event)}
-              style={{
-                padding: '12px 16px',
-                background: '#3b82f6',
-                color: 'white',
-                borderRadius: 8,
-                textDecoration: 'none',
-                textAlign: 'center',
-                fontWeight: 500,
-                fontSize: 14,
-              }}
-            >
-              📦 New Wholesale Order
+            <a href="/dealer/orders" onClick={(event) => navigateTo('/dealer/orders', event)} style={{ padding: '12px 16px', background: '#3b82f6', color: 'white', borderRadius: 8, textDecoration: 'none', textAlign: 'center', fontWeight: 500, fontSize: 14 }}>
+              New Wholesale Order
             </a>
-            <a
-              href="/dealer/arrivals"
-              onClick={(event) => navigateTo('/dealer/arrivals', event)}
-              style={{
-                padding: '12px 16px',
-                background: '#10b981',
-                color: 'white',
-                borderRadius: 8,
-                textDecoration: 'none',
-                textAlign: 'center',
-                fontWeight: 500,
-                fontSize: 14,
-              }}
-            >
-              🚚 Track Shipments
+            <a href="/dealer/arrivals" onClick={(event) => navigateTo('/dealer/arrivals', event)} style={{ padding: '12px 16px', background: '#10b981', color: 'white', borderRadius: 8, textDecoration: 'none', textAlign: 'center', fontWeight: 500, fontSize: 14 }}>
+              Track Shipments
             </a>
-            <a
-              href="/dealer/inventory"
-              onClick={(event) => navigateTo('/dealer/inventory', event)}
-              style={{
-                padding: '12px 16px',
-                background: '#f59e0b',
-                color: 'white',
-                borderRadius: 8,
-                textDecoration: 'none',
-                textAlign: 'center',
-                fontWeight: 500,
-                fontSize: 14,
-              }}
-            >
-              📊 Check Inventory
+            <a href="/dealer/inventory" onClick={(event) => navigateTo('/dealer/inventory', event)} style={{ padding: '12px 16px', background: '#f59e0b', color: 'white', borderRadius: 8, textDecoration: 'none', textAlign: 'center', fontWeight: 500, fontSize: 14 }}>
+              Check Inventory
             </a>
-            <a
-              href="/dealer/analytics"
-              onClick={(event) => navigateTo('/dealer/analytics', event)}
-              style={{
-                padding: '12px 16px',
-                background: '#8b5cf6',
-                color: 'white',
-                borderRadius: 8,
-                textDecoration: 'none',
-                textAlign: 'center',
-                fontWeight: 500,
-                fontSize: 14,
-              }}
-            >
-              📈 View Analytics
+            <a href="/dealer/analytics" onClick={(event) => navigateTo('/dealer/analytics', event)} style={{ padding: '12px 16px', background: '#8b5cf6', color: 'white', borderRadius: 8, textDecoration: 'none', textAlign: 'center', fontWeight: 500, fontSize: 14 }}>
+              View Analytics
             </a>
           </div>
         </div>
       </section>
 
-      {/* Low Stock Alerts */}
       {lowStock.length > 0 && (
         <section style={{ marginBottom: 24 }}>
           <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 12, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'start', gap: 12 }}>
-              <span style={{ fontSize: 24 }}>⚠️</span>
               <div>
-                <h4 style={{ margin: '0 0 4px 0', color: '#92400e', fontWeight: 600 }}>
-                  Low Stock Alert
-                </h4>
+                <h4 style={{ margin: '0 0 4px 0', color: '#92400e', fontWeight: 600 }}>Low Stock Alert</h4>
                 <p style={{ margin: 0, fontSize: 14, color: '#78350f' }}>
                   {lowStock.length} items are running low. Consider restocking soon.
                 </p>
-                <a
-                  href="/dealer/inventory"
-                  onClick={(event) => navigateTo('/dealer/inventory', event)}
-                  style={{ fontSize: 14, color: '#f59e0b', fontWeight: 500, marginTop: 8, display: 'inline-block' }}
-                >
-                  View Inventory →
+                <a href="/dealer/inventory" onClick={(event) => navigateTo('/dealer/inventory', event)} style={{ fontSize: 14, color: '#f59e0b', fontWeight: 500, marginTop: 8, display: 'inline-block' }}>
+                  View Inventory -&gt;
                 </a>
               </div>
             </div>
@@ -368,30 +321,25 @@ function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
         </section>
       )}
 
-      {/* Inbound Shipments Preview */}
       <section>
         <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Inbound Shipments</h3>
-            <a
-              href="/dealer/arrivals"
-              onClick={(event) => navigateTo('/dealer/arrivals', event)}
-              style={{ fontSize: 14, color: '#3b82f6', textDecoration: 'none' }}
-            >
-              Track All →
+            <a href="/dealer/arrivals" onClick={(event) => navigateTo('/dealer/arrivals', event)} style={{ fontSize: 14, color: '#3b82f6', textDecoration: 'none' }}>
+              Track All -&gt;
             </a>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
             <div style={{ padding: 16, background: '#dbeafe', borderRadius: 8 }}>
-              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#1e40af', margin: 0 }}>5</p>
+              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#1e40af', margin: 0 }}>{shipmentSummary.inTransit}</p>
               <p style={{ fontSize: 14, color: '#1e3a8a', margin: '4px 0 0 0' }}>In Transit</p>
             </div>
             <div style={{ padding: 16, background: '#dcfce7', borderRadius: 8 }}>
-              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#166534', margin: 0 }}>3</p>
+              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#166534', margin: 0 }}>{shipmentSummary.arrivingToday}</p>
               <p style={{ fontSize: 14, color: '#14532d', margin: '4px 0 0 0' }}>Arriving Today</p>
             </div>
             <div style={{ padding: 16, background: '#fef3c7', borderRadius: 8 }}>
-              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#92400e', margin: 0 }}>2</p>
+              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#92400e', margin: 0 }}>{shipmentSummary.delayed}</p>
               <p style={{ fontSize: 14, color: '#78350f', margin: '4px 0 0 0' }}>Delayed</p>
             </div>
           </div>

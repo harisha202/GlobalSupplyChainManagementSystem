@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { authApi } from './api/axiosInstance'
 import {
   useAuthStore,
@@ -14,18 +14,18 @@ import Signup from './pages/Auth/Signup'
 import GuestForm from './pages/Auth/GuestForm'
 import RoleSelection from './pages/Auth/RoleSelection'
 
-import AdminDashboard from './pages/Admin/Dashboard'
-import AdminAnalytics from './pages/Admin/Analytics'
-import AdminBlockchainMonitor from './pages/Admin/BlockchainMonitor'
-import AdminSystemReport from './pages/Admin/Systemreport'
-import ManufacturerDashboard from './pages/Manufacturer/Dashboard'
-import TransporterDashboard from './pages/Transporter/Dashboard'
-import DealerDashboard from './pages/Dealer/Dashboard'
-import DealerOrders from './pages/Dealer/Orders'
-import DealerArrivals from './pages/Dealer/Arrivals'
-import DealerInventory from './pages/Dealer/Inventory'
-import DealerAnalytics from './pages/Dealer/Analytics'
-import RetailShopDashboard from './pages/RetailShop/Dashboard'
+const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'))
+const AdminAnalytics = lazy(() => import('./pages/Admin/Analytics'))
+const AdminBlockchainMonitor = lazy(() => import('./pages/Admin/BlockchainMonitor'))
+const AdminSystemReport = lazy(() => import('./pages/Admin/Systemreport'))
+const ManufacturerDashboard = lazy(() => import('./pages/Manufacturer/Dashboard'))
+const TransporterDashboard = lazy(() => import('./pages/Transporter/Dashboard'))
+const DealerDashboard = lazy(() => import('./pages/Dealer/Dashboard'))
+const DealerOrders = lazy(() => import('./pages/Dealer/Orders'))
+const DealerArrivals = lazy(() => import('./pages/Dealer/Arrivals'))
+const DealerInventory = lazy(() => import('./pages/Dealer/Inventory'))
+const DealerAnalytics = lazy(() => import('./pages/Dealer/Analytics'))
+const RetailShopDashboard = lazy(() => import('./pages/RetailShop/Dashboard'))
 
 const ROLE_TO_API = {
   Admin: 'admin',
@@ -172,32 +172,48 @@ function App() {
     navigate('/')
   }
 
+  const openRoleSelection = (intent) => {
+    setEntryIntent(intent)
+    setPendingRole((previousRole) => (
+      intent !== 'login' && previousRole === 'Admin' ? 'Manufacturer' : previousRole
+    ))
+    setScreen('role-selection')
+  }
+
   const { Component: Dashboard, viewProps } = useMemo(() => {
     return getRoleView(auth.role, currentPath)
   }, [auth.role, currentPath])
 
+  const dashboardFallback = (
+    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>Loading dashboard...</main>
+  )
+
   if (auth.isGuest && Dashboard) {
     return (
-      <Dashboard
-        user={auth.user}
-        onLogout={handleLogout}
-        isGuest={true}
-        onNavigate={navigate}
-        currentPath={currentPath}
-        {...viewProps}
-      />
+      <Suspense fallback={dashboardFallback}>
+        <Dashboard
+          user={auth.user}
+          onLogout={handleLogout}
+          isGuest={true}
+          onNavigate={navigate}
+          currentPath={currentPath}
+          {...viewProps}
+        />
+      </Suspense>
     )
   }
 
   if (Dashboard && auth.user && !auth.isGuest) {
     return (
-      <Dashboard
-        user={auth.user}
-        onLogout={handleLogout}
-        onNavigate={navigate}
-        currentPath={currentPath}
-        {...viewProps}
-      />
+      <Suspense fallback={dashboardFallback}>
+        <Dashboard
+          user={auth.user}
+          onLogout={handleLogout}
+          onNavigate={navigate}
+          currentPath={currentPath}
+          {...viewProps}
+        />
+      </Suspense>
     )
   }
 
@@ -205,18 +221,9 @@ function App() {
     return (
       <Login
         role={pendingRole}
-        onBack={() => {
-          setEntryIntent('login')
-          setScreen('role-selection')
-        }}
-        onSignupClick={() => {
-          setEntryIntent('signup')
-          setScreen('signup')
-        }}
-        onGuestClick={() => {
-          setEntryIntent('guest')
-          setScreen('guest')
-        }}
+        onBack={() => openRoleSelection('login')}
+        onSignupClick={() => openRoleSelection('signup')}
+        onGuestClick={() => openRoleSelection('guest')}
         onSubmit={async ({ email, password }) => {
           const data = await authApi.login({
             email,
@@ -292,6 +299,7 @@ function App() {
     return (
       <RoleSelection
         selectedRole={pendingRole}
+        includeAdmin={entryIntent === 'login'}
         onBack={() => {
           setEntryIntent('login')
           setScreen('home')
@@ -316,18 +324,9 @@ function App() {
 
   return (
     <Homepage
-      onGuestEntry={() => {
-        setEntryIntent('guest')
-        setScreen('role-selection')
-      }}
-      onLoginClick={() => {
-        setEntryIntent('login')
-        setScreen('role-selection')
-      }}
-      onSignupClick={() => {
-        setEntryIntent('signup')
-        setScreen('role-selection')
-      }}
+      onGuestEntry={() => openRoleSelection('guest')}
+      onLoginClick={() => openRoleSelection('login')}
+      onSignupClick={() => openRoleSelection('signup')}
     />
   )
 }

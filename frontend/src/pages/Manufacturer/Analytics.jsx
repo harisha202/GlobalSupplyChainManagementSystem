@@ -2,54 +2,38 @@ import AreaChart from '../../components/charts/AreaChart'
 import BarChart from '../../components/charts/BarChart'
 import LineChart from '../../components/charts/LineChart'
 
-function toChartSeries(series = [], fallback = []) {
+function toChartSeries(series = []) {
   if (!Array.isArray(series) || !series.length) {
-    return fallback
+    return []
   }
 
   if (typeof series[0] === 'object') {
-    return series
+    return series.map((item, index) => ({
+      label: item.label || `Point ${index + 1}`,
+      value: Number(item.value || 0),
+    }))
   }
 
   return series.map((value, index) => ({
     label: `Point ${index + 1}`,
-    value: Number(value ?? 0),
+    value: Number(value || 0),
   }))
 }
 
 function Analytics({ forecastSeries = [], batches = [], analyticsData = {} }) {
-  const fallbackEfficiency = [
-    { label: 'Week 1', value: 92 },
-    { label: 'Week 2', value: 89 },
-    { label: 'Week 3', value: 94 },
-    { label: 'Week 4', value: 96 },
-  ]
-  const fallbackDefects = [
-    { label: 'Jan', value: 2.4 },
-    { label: 'Feb', value: 1.8 },
-    { label: 'Mar', value: 1.5 },
-    { label: 'Apr', value: 1.2 },
-  ]
-  const fallbackCategory = [
-    { label: 'PPE', value: 1300 },
-    { label: 'Medical', value: 800 },
-    { label: 'First Aid', value: 600 },
-    { label: 'Diagnostics', value: 450 },
-  ]
-
   const forecastChartData = toChartSeries(
     analyticsData.forecastSeries?.length ? analyticsData.forecastSeries : forecastSeries,
-    [],
   )
-  const efficiencyData = toChartSeries(analyticsData.efficiencyTrend, fallbackEfficiency)
-  const defectData = toChartSeries(analyticsData.defectTrend, fallbackDefects)
-  const categoryProduction = toChartSeries(analyticsData.categoryProduction, fallbackCategory)
+  const efficiencyData = toChartSeries(analyticsData.efficiencyTrend)
+  const defectData = toChartSeries(analyticsData.defectTrend)
+  const categoryProduction = toChartSeries(analyticsData.categoryProduction)
 
-  const totalOutputFallback = batches.reduce((sum, row) => sum + Number(row.quantity ?? 0), 0)
+  const totalOutputFallback = batches.reduce((sum, row) => sum + Number(row.quantity || 0), 0)
+
   const analyticsStats = {
-    avgEfficiency: analyticsData.stats?.avgEfficiency || '93%',
-    avgDefectRate: analyticsData.stats?.avgDefectRate || '1.73%',
-    totalOutput: analyticsData.stats?.totalOutput || totalOutputFallback || '3,150',
+    avgEfficiency: analyticsData.stats?.avgEfficiency || '0%',
+    avgDefectRate: analyticsData.stats?.avgDefectRate || '0%',
+    totalOutput: analyticsData.stats?.totalOutput || totalOutputFallback || 0,
     forecast:
       analyticsData.stats?.forecastNext ||
       forecastChartData[forecastChartData.length - 1]?.value ||
@@ -62,17 +46,17 @@ function Analytics({ forecastSeries = [], batches = [], analyticsData = {} }) {
         <div className="stat-card">
           <span className="stat-label">Avg Efficiency</span>
           <span className="stat-value">{analyticsStats.avgEfficiency}</span>
-          <span className="stat-trend positive">+4.2%</span>
+          <span className="stat-trend neutral">Live</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">Avg Defect Rate</span>
           <span className="stat-value">{analyticsStats.avgDefectRate}</span>
-          <span className="stat-trend positive">-0.67%</span>
+          <span className="stat-trend neutral">Live</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">Total Output</span>
           <span className="stat-value">{analyticsStats.totalOutput}</span>
-          <span className="stat-trend positive">+12.5%</span>
+          <span className="stat-trend neutral">Live</span>
         </div>
         <div className="stat-card">
           <span className="stat-label">AI Forecast Next</span>
@@ -85,7 +69,7 @@ function Analytics({ forecastSeries = [], batches = [], analyticsData = {} }) {
         <div className="card chart-large">
           <h4 className="card-title">AI Production Forecast</h4>
           <AreaChart data={forecastChartData} color="#0ea5e9" />
-          <p className="chart-note">Blue area shows historical data, projection continues trend</p>
+          <p className="chart-note">Forecast uses backend production history and trend prediction.</p>
         </div>
 
         <div className="card">
@@ -110,15 +94,15 @@ function Analytics({ forecastSeries = [], batches = [], analyticsData = {} }) {
           <div className="insight-item">
             <div className="insight-icon insight-success">OK</div>
             <div className="insight-content">
-              <h5>Production Efficiency Up</h5>
-              <p>Efficiency trend is improving over the latest production cycle.</p>
+              <h5>Efficiency Tracking</h5>
+              <p>Efficiency trend is generated from live manufacturer analytics.</p>
             </div>
           </div>
           <div className="insight-item">
             <div className="insight-icon insight-success">OK</div>
             <div className="insight-content">
-              <h5>Defect Rate Declining</h5>
-              <p>Quality trend indicates lower defects across recent months.</p>
+              <h5>Defect Monitoring</h5>
+              <p>Defect rate reflects backend-calculated quality trend values.</p>
             </div>
           </div>
           <div className="insight-item">
@@ -131,8 +115,8 @@ function Analytics({ forecastSeries = [], batches = [], analyticsData = {} }) {
           <div className="insight-item">
             <div className="insight-icon insight-warning">!</div>
             <div className="insight-content">
-              <h5>Category Focus</h5>
-              <p>Category mix is sourced from live backend inventory quantities.</p>
+              <h5>Category Mix</h5>
+              <p>Category output is mapped directly from backend production totals.</p>
             </div>
           </div>
         </div>

@@ -4,6 +4,8 @@ import asyncio
 import json
 import logging
 import os
+import socket
+import sys
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
@@ -13,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import admin, auth, blockchain, dealer, inventory, manufacturer, tracking
 from app.core.config import ConfigurationError, get_settings, validate_settings
-from app.api.tracking import get_shipments_snapshot
+from app.api.tracking import get_tracking_socket_payload
 from app.services.database_service import DatabaseError, check_database_connection, initialize_database
 
 logger = logging.getLogger("global_supply_chain_api")
@@ -100,10 +102,7 @@ def create_app() -> FastAPI:
         await websocket.accept()
         try:
             while True:
-                payload = {
-                    "type": "gps:update",
-                    "shipments": get_shipments_snapshot(),
-                }
+                payload = get_tracking_socket_payload()
                 await websocket.send_text(json.dumps(payload))
                 await asyncio.sleep(2)
         except WebSocketDisconnect:
@@ -122,8 +121,34 @@ except ConfigurationError as exc:
 if __name__ == "__main__":
     import uvicorn
 
-    reload_enabled = os.getenv("UVICORN_RELOAD", "false").strip().lower() in {"1", "true", "yes", "on"}
+    def can_bind(host_value: str, port_value: int) -> tuple[bool, OSError | None]:
+        test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            test_socket.bind((host_value, port_value))
+        except OSError as bind_error:
+            return False, bind_error
+        finally:
+            test_socket.close()
+        return True, None
+
+    default_reload = "true" if os.getenv("APP_ENV", "development").strip().lower() == "development" else "false"
+    reload_enabled = os.getenv("UVICORN_RELOAD", default_reload).strip().lower() in {"1", "true", "yes", "on"}
     host = os.getenv("UVICORN_HOST", "127.0.0.1")
     port = int(os.getenv("UVICORN_PORT", "8000"))
+
+    available, bind_error = can_bind(host, port)
+    if not available:
+        print(
+            f"[startup] Cannot bind {host}:{port}. "
+            f"This usually means another process is already using the port or access is blocked."
+        )
+        print(f"[startup] Original error: {bind_error}")
+        print(f"[startup] Check current listener: netstat -ano | findstr :{port}")
+        print("[startup] Run on another port: $env:UVICORN_PORT='8001'; python run.py")
+        print(
+            "[startup] If frontend is running, align proxy target: "
+            "$env:VITE_DEV_PROXY_TARGET='http://127.0.0.1:8001'"
+        )
+        sys.exit(1)
 
     uvicorn.run("run:app", host=host, port=port, reload=reload_enabled)

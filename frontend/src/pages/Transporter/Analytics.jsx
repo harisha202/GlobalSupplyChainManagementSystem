@@ -1,51 +1,20 @@
 import AreaChart from '../../components/charts/AreaChart'
 import LineChart from '../../components/charts/LineChart'
 import StatusDonut from '../../components/charts/StatusDonut'
+import { normalizeAnalyticsPayload } from './shipmentUtils'
 
-function Analytics({ shipments = {}, analyticsData = {} }) {
-  const vehicles = Object.values(shipments)
-
-  const fallbackTrends = [
-    { label: 'Mon', value: 45 },
-    { label: 'Tue', value: 52 },
-    { label: 'Wed', value: 48 },
-    { label: 'Thu', value: 61 },
-    { label: 'Fri', value: 55 },
-    { label: 'Sat', value: 42 },
-    { label: 'Sun', value: 38 },
-  ]
-
-  const inTransit = vehicles.filter((v) => String(v.status).toLowerCase().includes('in transit')).length
-  const delayed = vehicles.filter((v) => String(v.status).toLowerCase().includes('delay')).length
-  const completed = Math.max(vehicles.length - inTransit - delayed, 0)
-
-  const statusData =
-    analyticsData.statusData?.length
-      ? analyticsData.statusData
-      : [
-          { label: 'In Transit', value: inTransit, color: '#0ea5e9' },
-          { label: 'Delayed', value: delayed, color: '#f97316' },
-          { label: 'Completed', value: completed, color: '#22c55e' },
-        ]
-
-  const forecast = analyticsData.forecast || {
-    today: vehicles.length,
-    projected: Math.round(vehicles.length * 1.15),
-    trend: '+15%',
-    series: [
-      { label: 'Today', value: Math.max(vehicles.length, 1) },
-      { label: 'D+1', value: Math.max(Math.round(vehicles.length * 1.05), 1) },
-      { label: 'D+2', value: Math.max(Math.round(vehicles.length * 1.1), 1) },
-      { label: 'D+3', value: Math.max(Math.round(vehicles.length * 1.15), 1) },
-    ],
-  }
+function Analytics({ shipments = {}, analyticsData = {}, timeRange = '7d' }) {
+  const normalizedAnalytics = normalizeAnalyticsPayload(analyticsData, shipments, timeRange)
+  const deliveryTrends = normalizedAnalytics.deliveryTrends || []
+  const statusData = normalizedAnalytics.statusData || []
+  const forecast = normalizedAnalytics.forecast || { today: 0, projected: 0, trend: '+0%', series: [] }
 
   return (
     <section className="analytics-container">
       <div className="analytics-grid">
         <div className="card">
           <h4 className="card-title">Delivery Trends</h4>
-          <AreaChart data={analyticsData.deliveryTrends?.length ? analyticsData.deliveryTrends : fallbackTrends} color="#0ea5e9" />
+          <AreaChart data={deliveryTrends} color="#0ea5e9" />
         </div>
 
         <div className="card">

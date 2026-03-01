@@ -57,6 +57,45 @@ Useful endpoints:
 - OpenAPI docs: `GET /docs`
 - Health should return database info (`database: connected`) when DB is reachable.
 
+### Backend Startup Troubleshooting (`WinError 10013`)
+
+If you see:
+
+```text
+ERROR: [WinError 10013] An attempt was made to access a socket in a way forbidden by its access permissions
+```
+
+it usually means port `8000` is already in use or blocked.
+
+Use:
+
+```powershell
+netstat -ano | findstr :8000
+tasklist /FI "PID eq <PID>"
+```
+
+Then either stop that process:
+
+```powershell
+Stop-Process -Id <PID> -Force
+python run.py
+```
+
+or run backend on another port:
+
+```powershell
+$env:UVICORN_PORT="8001"
+python run.py
+```
+
+If backend is on a non-default port, align frontend proxy target:
+
+```powershell
+$env:VITE_DEV_PROXY_TARGET="http://127.0.0.1:8001"
+cd frontend
+npm run dev
+```
+
 ## Frontend Setup
 
 ```powershell
@@ -146,6 +185,47 @@ For local testing:
 - `tracking`: live GPS, map, delay risk
 - `dealer`: orders, trends, inventory, arrivals, analytics
 - `inventory`: retail/dealer/manufacturer inventory snapshot
+
+## Dashboard Function Map
+
+Dashboard pages and the API functions they use:
+
+- `Admin Dashboard` (`frontend/src/pages/Admin/Dashboard.jsx`)
+  - `adminApi.stats()`
+  - `adminApi.aiForecast(history, periods)`
+- `Admin Analytics` (`frontend/src/pages/Admin/Analytics.jsx`)
+  - `adminApi.analytics(range)`
+- `Admin Blockchain Monitor` (`frontend/src/pages/Admin/BlockchainMonitor.jsx`)
+  - `adminApi.blockchainTransactions()`
+  - `adminApi.verifyBlockchainTransaction(txHash)`
+- `Admin Reports` (`frontend/src/pages/Admin/Systemreport.jsx`)
+  - `adminApi.generateReport(payload)`
+
+- `Manufacturer Dashboard` (`frontend/src/pages/Manufacturer/Dashboard.jsx`)
+  - `manufacturerApi.aiForecast(history, periods)`
+  - `manufacturerApi.batches()`
+  - `manufacturerApi.products()`
+  - `manufacturerApi.analytics()`
+
+- `Transporter Dashboard` (`frontend/src/pages/Transporter/Dashboard.jsx`)
+  - `trackingApi.liveGps()`
+  - `trackingApi.analytics(range)`
+  - WebSocket stream: `/ws/gps`
+
+- `Dealer Dashboard` (`frontend/src/pages/Dealer/Dashboard.jsx`)
+  - `dealerApi.recentOrders()`
+  - `dealerApi.orderTrends()`
+  - `dealerApi.lowStockAlerts()`
+  - `dealerApi.arrivals()`
+- `Dealer Inventory/Orders/Arrivals/Analytics` pages
+  - `dealerApi.inventory()`
+  - `dealerApi.arrivals()`
+  - `dealerApi.analytics(range)`
+
+- `Retail Dashboard` (`frontend/src/pages/RetailShop/Dashboard.jsx`)
+  - `inventoryApi.getInventory()`
+- `Retail Sales` (`frontend/src/pages/RetailShop/Sales.jsx`)
+  - `inventoryApi.salesAnalytics(range)`
 
 ## Notes
 

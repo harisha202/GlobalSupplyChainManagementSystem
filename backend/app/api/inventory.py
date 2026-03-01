@@ -24,8 +24,11 @@ router = APIRouter(prefix="/inventory", tags=["inventory"])
 )
 def get_inventory() -> dict:
     product_rows = []
+    total_stock = 0
+    total_inventory_value = 0.0
     for index, item in enumerate(products, start=1):
         quantity = int(item.get("quantity", 0))
+        price = float(item.get("price", 0.0))
         reorder_level = max(20, int(quantity * 0.35))
         status = (
             "critical"
@@ -34,6 +37,8 @@ def get_inventory() -> dict:
             if quantity <= reorder_level
             else "in-stock"
         )
+        total_stock += quantity
+        total_inventory_value += quantity * price
         product_rows.append(
             {
                 "id": item.get("sku", f"SKU-{index:03d}"),
@@ -41,20 +46,22 @@ def get_inventory() -> dict:
                 "category": "PPE" if "KIT" in str(item.get("sku", "")) else "Medical Supplies",
                 "stock": quantity,
                 "reorderLevel": reorder_level,
-                "price": float(item.get("price", 0.0)),
+                "price": price,
                 "verified": True,
                 "status": status,
             }
         )
 
+    weekly_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    avg_ticket = total_inventory_value / max(total_stock, 1)
+    demand_base = max(int(total_stock * 0.08), 140)
+    day_multiplier = [0.88, 0.95, 1.0, 1.04, 1.1, 1.22, 1.06]
     sales_rows = [
-        {"label": "Mon", "value": 420},
-        {"label": "Tue", "value": 580},
-        {"label": "Wed", "value": 490},
-        {"label": "Thu", "value": 720},
-        {"label": "Fri", "value": 650},
-        {"label": "Sat", "value": 890},
-        {"label": "Sun", "value": 540},
+        {
+            "label": label,
+            "value": max(0, int((demand_base * day_multiplier[idx]) * max(avg_ticket, 8.0))),
+        }
+        for idx, label in enumerate(weekly_labels)
     ]
 
     return {"products": product_rows, "sales": sales_rows}
@@ -75,22 +82,32 @@ def get_inventory() -> dict:
 )
 def get_sales_analytics(time_range: str = Query("week", alias="range")) -> dict:
     period = "month" if str(time_range).lower() == "month" else "week"
+    total_stock = sum(int(item.get("quantity", 0)) for item in products)
+    avg_price = (
+        sum(float(item.get("price", 0.0)) for item in products) / max(len(products), 1)
+    )
+    demand_base = max(int(total_stock * 0.08), 140)
+
     trend = (
         [
-            {"label": "Week 1", "value": 3200},
-            {"label": "Week 2", "value": 4100},
-            {"label": "Week 3", "value": 3800},
-            {"label": "Week 4", "value": 4500},
+            {
+                "label": f"D{index + 1}",
+                "value": max(
+                    0,
+                    int((demand_base * max(avg_price, 8.0)) + ((index % 7) - 3) * 45 + (index * 12)),
+                ),
+            }
+            for index in range(30)
         ]
         if period == "month"
         else [
-            {"label": "Mon", "value": 420},
-            {"label": "Tue", "value": 580},
-            {"label": "Wed", "value": 490},
-            {"label": "Thu", "value": 720},
-            {"label": "Fri", "value": 650},
-            {"label": "Sat", "value": 890},
-            {"label": "Sun", "value": 540},
+            {"label": "Mon", "value": max(0, int((demand_base * 0.88) * max(avg_price, 8.0)))},
+            {"label": "Tue", "value": max(0, int((demand_base * 0.95) * max(avg_price, 8.0)))},
+            {"label": "Wed", "value": max(0, int((demand_base * 1.0) * max(avg_price, 8.0)))},
+            {"label": "Thu", "value": max(0, int((demand_base * 1.04) * max(avg_price, 8.0)))},
+            {"label": "Fri", "value": max(0, int((demand_base * 1.10) * max(avg_price, 8.0)))},
+            {"label": "Sat", "value": max(0, int((demand_base * 1.22) * max(avg_price, 8.0)))},
+            {"label": "Sun", "value": max(0, int((demand_base * 1.06) * max(avg_price, 8.0)))},
         ]
     )
 
@@ -98,7 +115,7 @@ def get_sales_analytics(time_range: str = Query("week", alias="range")) -> dict:
     for index, item in enumerate(products, start=1):
         units = max(20, int(item.get("quantity", 0) * 0.07))
         revenue = units * float(item.get("price", 0.0))
-        growth = f"+{6 + index * 2}%"
+        growth = f"+{max(1, min(35, int((units / max(total_stock, 1)) * 100)))}%"
         top_products.append(
             {
                 "product": item.get("name", f"Product {index}"),
@@ -108,22 +125,24 @@ def get_sales_analytics(time_range: str = Query("week", alias="range")) -> dict:
             }
         )
 
-    if len(top_products) < 5:
-        fallback_items = [
-            {"product": "N95 Mask Box", "units": 320, "revenue": "$14,716.80", "growth": "+12%"},
-            {"product": "Nitrile Gloves", "units": 245, "revenue": "$6,122.55", "growth": "+8%"},
-            {"product": "Digital Thermometer", "units": 189, "revenue": "$3,022.11", "growth": "+15%"},
-            {"product": "Home Care Kit", "units": 78, "revenue": "$7,019.22", "growth": "+5%"},
-            {"product": "IV Set Standard", "units": 156, "revenue": "$1,950.00", "growth": "-3%"},
-        ]
-        top_products = (top_products + fallback_items)[:5]
-
-    transactions = [
-        {"id": "TXN-001", "time": "10:24 AM", "items": 3, "amount": "$124.97", "payment": "Card", "status": "Completed"},
-        {"id": "TXN-002", "time": "10:18 AM", "items": 1, "amount": "$45.99", "payment": "Cash", "status": "Completed"},
-        {"id": "TXN-003", "time": "10:05 AM", "items": 5, "amount": "$237.45", "payment": "UPI", "status": "Completed"},
-        {"id": "TXN-004", "time": "09:52 AM", "items": 2, "amount": "$89.98", "payment": "Wallet", "status": "Completed"},
-    ]
+    transactions = []
+    for idx, product in enumerate(products[:8], start=1):
+        units = max(1, int(int(product.get("quantity", 0)) * 0.01))
+        amount = units * float(product.get("price", 0.0))
+        hour = 9 + ((idx + 1) // 2)
+        minute = (idx * 7) % 60
+        meridian = "AM" if hour < 12 else "PM"
+        display_hour = hour if hour <= 12 else hour - 12
+        transactions.append(
+            {
+                "id": f"TXN-{idx:03d}",
+                "time": f"{display_hour:02d}:{minute:02d} {meridian}",
+                "items": units,
+                "amount": f"${amount:,.2f}",
+                "payment": ["Card", "UPI", "Cash", "Wallet"][idx % 4],
+                "status": "Completed",
+            }
+        )
 
     today_total = sum(point["value"] for point in trend[-1:]) if period == "week" else int(trend[-1]["value"] / 7)
     week_total = sum(point["value"] for point in trend) if period == "week" else int(sum(point["value"] for point in trend) / 4)

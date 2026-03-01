@@ -86,6 +86,13 @@ def normalize_email(email: str) -> str:
     return str(email).strip().lower()
 
 
+def normalize_display_name(name: str, fallback: str = "User") -> str:
+    text = str(name or "").strip()
+    if not text:
+        return fallback
+    return text[8:].strip() if text.lower().startswith("default ") else text
+
+
 def normalize_role(role: UserRole | str) -> UserRole:
     if isinstance(role, UserRole):
         return role
@@ -263,7 +270,12 @@ def signup(data: SignupRequest) -> LoginResponse:
     return LoginResponse(
         access_token=token,
         role=data.role,
-        user={"id": db_user["id"], "email": email, "name": data.name, "role": data.role},
+        user={
+            "id": db_user["id"],
+            "email": email,
+            "name": normalize_display_name(data.name),
+            "role": data.role,
+        },
     )
 
 
@@ -298,7 +310,7 @@ def login(data: LoginRequest) -> LoginResponse:
             user={
                 "id": db_user["id"],
                 "email": db_user["email"],
-                "name": db_user["name"],
+                "name": normalize_display_name(db_user["name"], fallback="User"),
                 "role": db_role,
             },
         )
@@ -323,7 +335,7 @@ def login(data: LoginRequest) -> LoginResponse:
         role=user_role,
         user={
             "email": user["email"],
-            "name": user["name"],
+            "name": normalize_display_name(user["name"], fallback="User"),
             "role": user_role,
         },
     )
@@ -361,7 +373,7 @@ def me(payload: dict = Depends(get_current_payload)) -> dict:
     if user is not None:
         return {
             "email": user["email"],
-            "name": user["name"],
+            "name": normalize_display_name(user["name"], fallback="User"),
             "role": normalize_role(user["role"]),
         }
 
@@ -377,7 +389,7 @@ def me(payload: dict = Depends(get_current_payload)) -> dict:
     return {
         "id": db_user["id"],
         "email": db_user["email"],
-        "name": db_user["name"],
+        "name": normalize_display_name(db_user["name"], fallback="User"),
         "role": normalize_role(db_user["role"]),
     }
 

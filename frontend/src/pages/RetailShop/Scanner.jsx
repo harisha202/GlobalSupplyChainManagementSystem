@@ -1,48 +1,64 @@
 import { useState } from 'react'
 import BlockchainBadge from '../../components/blockchain/BlockchainBadge'
 
-function Scanner() {
+function normalizeScanCode(value = '') {
+  return String(value).trim().toUpperCase()
+}
+
+function normalizeScannerProducts(products = []) {
+  return products.map((item, index) => {
+    const sku = String(item.id || item.sku || `SKU-${index + 1}`)
+    const normalizedSku = normalizeScanCode(sku)
+    const normalizedName = normalizeScanCode(item.name || '')
+    const aliases = []
+
+    if (normalizedSku.startsWith('N95') || normalizedName.includes('N95')) {
+      aliases.push('N95-KIT')
+    }
+    if (normalizedSku.startsWith('IV') || normalizedName.includes('IV SET')) {
+      aliases.push('IV-SET')
+    }
+
+    return {
+      code: sku,
+      aliases,
+      name: item.name || `Product ${index + 1}`,
+      manufacturer: item.manufacturer || 'Global Supply Manufacturer',
+      batchNumber: item.batchNumber || `BATCH-${String(index + 1).padStart(4, '0')}`,
+      expiryDate: item.expiryDate || 'N/A',
+      verified: Boolean(item.verified),
+      origin: item.origin || 'Supply Network',
+      certifications: Array.isArray(item.certifications) && item.certifications.length
+        ? item.certifications
+        : ['ISO 13485'],
+    }
+  })
+}
+
+function Scanner({ products = [] }) {
   const [scannedCode, setScannedCode] = useState('')
   const [scanResult, setScanResult] = useState(null)
   const [isScanning, setIsScanning] = useState(false)
 
-  const mockDatabase = {
-    'N95-001': {
-      name: 'N95 Mask Box (50pcs)',
-      manufacturer: 'MedSafe Corp',
-      batchNumber: 'BATCH-2024-001',
-      expiryDate: '2026-12-31',
-      verified: true,
-      origin: 'Mumbai, India',
-      certifications: ['FDA', 'CE', 'ISO 13485'],
-    },
-    'IV-002': {
-      name: 'IV Set Standard',
-      manufacturer: 'HealthTech Ltd',
-      batchNumber: 'BATCH-2024-045',
-      expiryDate: '2025-08-15',
-      verified: true,
-      origin: 'Bangalore, India',
-      certifications: ['ISO 13485', 'WHO-GMP'],
-    },
-    'CARE-003': {
-      name: 'Home Care Kit',
-      manufacturer: 'CareFirst Inc',
-      batchNumber: 'BATCH-2024-089',
-      expiryDate: '2027-03-20',
-      verified: false,
-      origin: 'Delhi, India',
-      certifications: ['ISO 9001'],
-    },
-  }
+  const productCatalog = normalizeScannerProducts(products)
+  const productByCode = Object.fromEntries(
+    productCatalog.flatMap((item) => {
+      const keys = [item.code, ...(item.aliases || [])].map((key) => normalizeScanCode(key))
+      return keys.map((key) => [key, item])
+    }),
+  )
+  const quickScanCodes = Array.from(
+    new Set(productCatalog.flatMap((item) => [item.code, ...(item.aliases || [])])),
+  ).slice(0, 4)
 
   const handleScan = (code) => {
+    const normalizedCode = normalizeScanCode(code)
     setIsScanning(true)
-    setScannedCode(code)
+    setScannedCode(normalizedCode)
 
     // Simulate scanning delay
     setTimeout(() => {
-      const result = mockDatabase[code]
+      const result = productByCode[normalizedCode]
       if (result) {
         setScanResult(result)
       } else {
@@ -87,7 +103,7 @@ function Scanner() {
             <input
               type="text"
               className="search-input"
-              placeholder="Enter product code (e.g., N95-001)"
+              placeholder="Enter code (e.g., N95-KIT, IV-SET)"
               value={scannedCode}
               onChange={(e) => setScannedCode(e.target.value)}
             />
@@ -96,26 +112,20 @@ function Scanner() {
             </button>
           </form>
 
-          <div className="quick-scan-buttons">
-            <button
-              className="btn-quick-scan"
-              onClick={() => handleScan('N95-001')}
-            >
-              Demo: N95-001
-            </button>
-            <button
-              className="btn-quick-scan"
-              onClick={() => handleScan('IV-002')}
-            >
-              Demo: IV-002
-            </button>
-            <button
-              className="btn-quick-scan"
-              onClick={() => handleScan('CARE-003')}
-            >
-              Demo: CARE-003
-            </button>
-          </div>
+          {quickScanCodes.length > 0 && (
+            <div className="quick-scan-buttons">
+              {quickScanCodes.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  className="btn-quick-scan"
+                  onClick={() => handleScan(code)}
+                >
+                  Scan: {code}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Scan Results */}

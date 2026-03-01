@@ -26,7 +26,13 @@ function Login({ role, onSubmit, onBack, onSignupClick }) {
     transporter:  'Transporter',
     dealer:       'Dealer',
     retail:       'Retail Shop',
+    retailshop:   'Retail Shop',
     admin:        'Admin',
+    Admin:        'Admin',
+    Manufacturer: 'Manufacturer',
+    Transporter:  'Transporter',
+    Dealer:       'Dealer',
+    RetailShop:   'Retail Shop',
   })[role] || role
 
   return (
@@ -111,7 +117,7 @@ function Login({ role, onSubmit, onBack, onSignupClick }) {
             disabled={isLoading}
             className="auth-btn-primary"
           >
-            {isLoading ? 'Signing in...' : '🔐 Login'}
+            {isLoading ? 'Signing in...' : 'Login'}
           </button>
 
           {/* BACK */}
@@ -144,3 +150,4 @@ function Login({ role, onSubmit, onBack, onSignupClick }) {
 }
 
 export default Login
+

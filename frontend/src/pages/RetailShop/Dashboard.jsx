@@ -47,19 +47,30 @@ function RetailShopDashboard({
     setActiveView(initialView)
   }, [initialView])
 
-  const rows = [
-    { sku: 'N95-Box', sold: 32, stock: 120, verify: 'Verified' },
-    { sku: 'IV-Set', sold: 11, stock: 34, verify: 'Verified' },
-    { sku: 'Care Kit', sold: 5, stock: 12, verify: 'Pending' },
+  const rows = products.slice(0, 6).map((item) => ({
+    sku: item.id || item.sku || 'SKU',
+    sold: Math.max(0, Math.round(Number(item.stock || 0) * 0.08)),
+    stock: Number(item.stock || 0),
+    verify: item.verified ? 'Verified' : 'Pending',
+  }))
+
+  const lowStockCount = products.filter((item) => String(item.status || '').toLowerCase().includes('low')).length
+  const verifiedCount = products.filter((item) => Boolean(item.verified)).length
+  const salesToday = salesData.length ? salesData[salesData.length - 1]?.value ?? 0 : 0
+  const weeklySales = salesData.reduce((sum, row) => sum + Number(row?.value || 0), 0)
+  const stats = [
+    { label: 'Store Sales Today', value: `$${Number(salesToday).toLocaleString()}`, trend: 'Live' },
+    { label: 'Customer Orders', value: Math.max(0, Math.round(weeklySales / 250)), trend: 'Live' },
+    { label: 'Low Stock Alerts', value: lowStockCount, trend: 'Live' },
+    { label: 'Verified Products', value: verifiedCount, trend: 'Live' },
+    { label: 'Returns', value: 0, trend: 'Live' },
   ]
 
-  const stats = [
-    { label: 'Store Sales Today', value: '$3,940', trend: '+7.4%' },
-    { label: 'Customer Orders', value: 46, trend: '+5' },
-    { label: 'Low Stock Alerts', value: 4, trend: '-1' },
-    { label: 'Verified Products', value: 129, trend: '+22' },
-    { label: 'Returns', value: 2, trend: 'Stable' },
-  ]
+  const salesMix = rows.map((item, index) => ({
+    label: item.sku,
+    value: item.sold,
+    color: ['#0ea5e9', '#22c55e', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6'][index % 6],
+  })).filter((item) => item.value > 0)
 
   return (
     <DashboardLayout
@@ -101,11 +112,7 @@ function RetailShopDashboard({
             />
             <PieChart
               title="Sales Mix"
-              data={[
-                { label: 'N95-Box', value: 32, color: '#0ea5e9' },
-                { label: 'IV-Set', value: 11, color: '#22c55e' },
-                { label: 'Care Kit', value: 5, color: '#f59e0b' },
-              ]}
+              data={salesMix}
             />
           </section>
         </>
@@ -115,7 +122,7 @@ function RetailShopDashboard({
       {activeView === 'pos' && <POS products={products} />}
 
       {/* Scanner View */}
-      {activeView === 'scanner' && <Scanner />}
+      {activeView === 'scanner' && <Scanner products={products} />}
 
       {/* Inventory View */}
       {activeView === 'inventory' && <Inventory products={products} />}

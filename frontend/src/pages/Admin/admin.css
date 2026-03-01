@@ -573,3 +573,34 @@ textarea:focus {
   border: 1px solid #dbeafe;
   box-shadow: 0 10px 26px rgba(30, 64, 175, 0.08);
 }
+
+/* Admin analytics range buttons */
+.admin-range-selector {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-range-btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-range-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.admin-range-btn.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border-color: #1d4ed8;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
+}

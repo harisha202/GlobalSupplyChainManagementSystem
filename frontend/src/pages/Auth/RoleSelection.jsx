@@ -33,8 +33,9 @@ const ROLES = [
   },
 ]
 
-function RoleSelection({ selectedRole, onSelectRole, onSelect, onBack }) {
+function RoleSelection({ selectedRole, onSelectRole, onSelect, onBack, includeAdmin = true }) {
   const handleSelect = onSelectRole || onSelect
+  const visibleRoles = includeAdmin ? ROLES : ROLES.filter((role) => role.id !== 'Admin')
 
   return (
     <main className="role-selection-scene role-selection-theme-matrix">
@@ -53,7 +54,7 @@ function RoleSelection({ selectedRole, onSelectRole, onSelect, onBack }) {
         </div>
 
         <div className="role-grid">
-          {ROLES.map((role) => {
+          {visibleRoles.map((role) => {
             const active = role.id === selectedRole
             return (
               <button

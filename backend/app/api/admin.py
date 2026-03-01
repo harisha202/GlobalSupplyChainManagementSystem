@@ -10,6 +10,7 @@ from fastapi.responses import Response
 from app.core.middleware import require_roles
 from app.models.user import UserRole
 from app.services.ai_service import predict_demand
+from app.services.database_service import DatabaseError, count_guest_entries, count_users
 from app.services.notification_service import notification_service
 from app.services.state_service import batches, ledger_records, products, shipments, users
 
@@ -18,9 +19,19 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/stats", dependencies=[Depends(require_roles(UserRole.admin))])
 def get_global_stats() -> dict:
+    try:
+        db_user_count = count_users()
+        guest_entries = count_guest_entries()
+    except DatabaseError:
+        db_user_count = 0
+        guest_entries = 0
+
+    in_memory_users = len(users)
+    total_users = max(in_memory_users, db_user_count)
     revenue = sum(item["quantity"] * item["price"] for item in products)
     return {
-        "total_users": len(users),
+        "total_users": total_users,
+        "guest_entries": guest_entries,
         "total_products": len(products),
         "total_batches": len(batches),
         "active_shipments": len(shipments),
@@ -49,17 +60,49 @@ def get_notifications(limit: int = Query(20, ge=1, le=100)) -> dict:
 @router.get("/analytics", dependencies=[Depends(require_roles(UserRole.admin))])
 def analytics(time_range: str = Query("30d", alias="range")) -> dict:
     points = 7 if time_range == "7d" else 365 if time_range == "1y" else 90 if time_range == "90d" else 30
-    revenue = [50000 + (idx % 6) * 6500 + (idx // 6) * 1200 for idx in range(points)]
-    forecast = predict_demand([float(value) for value in revenue[-6:]], horizon=60)
+    product_revenue = sum(float(item.get("quantity", 0)) * float(item.get("price", 0.0)) for item in products)
+    shipment_count = len(shipments)
+    batch_count = len(batches)
+    delayed_count = sum(1 for item in shipments.values() if "delay" in str(item.get("status", "")).lower())
+    in_transit_count = sum(1 for item in shipments.values() if "transit" in str(item.get("status", "")).lower())
+
+    base = max(product_revenue * 0.08, 1200.0)
+    throughput = (shipment_count * 180.0) + (batch_count * 140.0)
+    delay_penalty = delayed_count * 45.0
+    revenue = []
+    for idx in range(points):
+        cycle = ((idx % 6) - 2.5) * max(throughput * 0.03, 14.0)
+        growth = (idx + 1) * max(throughput / max(points, 1), 8.0)
+        value = max(0.0, base + growth + cycle - delay_penalty)
+        revenue.append(round(value, 2))
+
+    forecast_horizon = 30 if points >= 90 else 14 if points >= 30 else 7
+    forecast_source = [float(value) for value in revenue[-min(len(revenue), 12):]]
+    forecast = predict_demand(forecast_source, horizon=forecast_horizon)
+
+    try:
+        db_user_count = count_users()
+        guest_entries = count_guest_entries()
+    except DatabaseError:
+        db_user_count = 0
+        guest_entries = 0
+
     normalized_roles = [
         role.value if hasattr(role, "value") else str(role) for role in [u.get("role") for u in users.values()]
     ]
+    total_users = max(len(users), db_user_count)
     role_counts = {
         "Manufacturers": len([role for role in normalized_roles if role == UserRole.manufacturer.value]),
         "Transporters": len([role for role in normalized_roles if role == UserRole.transporter.value]),
         "Dealers": len([role for role in normalized_roles if role == UserRole.dealer.value]),
         "Retail Shops": len([role for role in normalized_roles if role == UserRole.retail_shop.value]),
     }
+
+    active_entities = max(total_users - delayed_count, 0)
+    pending_items = max((shipment_count - in_transit_count) + max(guest_entries // 2, 0), 0)
+    issue_items = max(delayed_count, 0)
+    maintenance_items = max(shipment_count - in_transit_count - delayed_count, 0)
+
     return {
         "revenue": revenue,
         "forecast": forecast,
@@ -70,16 +113,16 @@ def analytics(time_range: str = Query("30d", alias="range")) -> dict:
             {"label": "Retail Shops", "value": role_counts["Retail Shops"], "color": "#f59e0b"},
         ],
         "systemStatus": [
-            {"label": "Active", "value": 892, "color": "#10b981"},
-            {"label": "Pending", "value": 45, "color": "#f59e0b"},
-            {"label": "Issues", "value": 12, "color": "#ef4444"},
-            {"label": "Maintenance", "value": 8, "color": "#6b7280"},
+            {"label": "Active", "value": active_entities, "color": "#10b981"},
+            {"label": "Pending", "value": pending_items, "color": "#f59e0b"},
+            {"label": "Issues", "value": issue_items, "color": "#ef4444"},
+            {"label": "Maintenance", "value": maintenance_items, "color": "#6b7280"},
         ],
         "apiMetrics": {
-            "auth": 12847,
-            "blockchain": 8523,
-            "gps": 15234,
-            "analytics": 6789,
+            "auth": max(total_users * 12 + guest_entries * 3, 1),
+            "blockchain": max(len(ledger_records), 1),
+            "gps": max(shipment_count * 18, 1),
+            "analytics": max(points * 4, 1),
         },
     }
 
@@ -106,31 +149,6 @@ def blockchain_transactions() -> dict:
                     },
                 }
             )
-    else:
-        transactions = [
-            {
-                "id": 1,
-                "transactionHash": "0x7f9fade1c0d57a7af66ab4ead79fade1c0d57a7af66ab4ead7c2c2eb7b11a91385",
-                "productBatch": "BATCH-2024-001",
-                "manufacturer": "ABC Manufacturing",
-                "status": "verified",
-                "blockNumber": 18234567,
-                "gasFee": 42,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "productDetails": {"name": "Product A", "quantity": 1000, "category": "Electronics"},
-            },
-            {
-                "id": 2,
-                "transactionHash": "0x8c1fade2d1e68b8bg77bc5fbe8efade2d1e68b8bg77bc5fbe8d3d3fc8c22b02496",
-                "productBatch": "BATCH-2024-002",
-                "manufacturer": "XYZ Industries",
-                "status": "pending",
-                "blockNumber": None,
-                "gasFee": 0,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "productDetails": {"name": "Product B", "quantity": 500, "category": "Automotive"},
-            },
-        ]
     total = len(transactions)
     verified = len([tx for tx in transactions if tx.get("status") == "verified"])
     pending = len([tx for tx in transactions if tx.get("status") == "pending"])

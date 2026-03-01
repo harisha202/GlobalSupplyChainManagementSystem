@@ -1,6 +1,29 @@
 import { useState } from 'react'
 import Table from '../../components/common/Table'
 
+function normalizeBatchRows(batches = []) {
+  return batches.map((item, index) => {
+    const rawStatus = String(item.status || 'created').toLowerCase()
+    const status =
+      rawStatus === 'created'
+        ? 'in-progress'
+        : rawStatus
+
+    return {
+      batchId: item.batchId || item.batch_id || `BATCH-${index + 1}`,
+      sku: item.sku || item.product_sku || '--',
+      productName: item.productName || item.product_name || item.sku || item.product_sku || `Product ${index + 1}`,
+      quantity: Number(item.quantity || 0),
+      status,
+      startDate: item.startDate || item.created_at || item.timestamp || '--',
+      endDate: item.endDate || item.completed_at || '--',
+      qcStatus:
+        item.qcStatus ||
+        (status === 'completed' ? 'passed' : status === 'quality-check' ? 'in-review' : 'pending'),
+    }
+  })
+}
+
 function Production({ batches = [] }) {
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -11,67 +34,7 @@ function Production({ batches = [] }) {
     batchNumber: '',
   })
 
-  const mockProduction = [
-    {
-      batchId: 'BATCH-2024-001',
-      sku: 'N95-MASK-50',
-      productName: 'N95 Mask Box (50pcs)',
-      quantity: 500,
-      status: 'completed',
-      startDate: '2024-02-10',
-      endDate: '2024-02-14',
-      qcStatus: 'passed',
-    },
-    {
-      batchId: 'BATCH-2024-002',
-      sku: 'IV-SET-STD',
-      productName: 'IV Set Standard',
-      quantity: 300,
-      status: 'in-progress',
-      startDate: '2024-02-15',
-      endDate: '--',
-      qcStatus: 'pending',
-    },
-    {
-      batchId: 'BATCH-2024-003',
-      sku: 'SYRINGE-10ML',
-      productName: 'Disposable Syringe 10ml',
-      quantity: 1000,
-      status: 'in-progress',
-      startDate: '2024-02-14',
-      endDate: '--',
-      qcStatus: 'pending',
-    },
-    {
-      batchId: 'BATCH-2024-004',
-      sku: 'GLOVE-NITRILE',
-      productName: 'Nitrile Gloves (100pcs)',
-      quantity: 800,
-      status: 'completed',
-      startDate: '2024-02-08',
-      endDate: '2024-02-12',
-      qcStatus: 'passed',
-    },
-    {
-      batchId: 'BATCH-2024-005',
-      sku: 'BANDAGE-ADHV',
-      productName: 'Adhesive Bandages (100pcs)',
-      quantity: 600,
-      status: 'quality-check',
-      startDate: '2024-02-11',
-      endDate: '2024-02-15',
-      qcStatus: 'in-review',
-    },
-  ]
-
-  const displayProduction = batches.length > 0 
-    ? batches.map((b, i) => ({
-        ...mockProduction[i % mockProduction.length],
-        batchId: b.batchId || b.batch_id,
-        sku: b.sku || b.product_sku,
-        status: b.status,
-      }))
-    : mockProduction
+  const displayProduction = normalizeBatchRows(batches)
 
   const filteredProduction = displayProduction
     .filter((item) => {
@@ -137,31 +100,36 @@ function Production({ batches = [] }) {
             />
             <div className="filter-buttons">
               <button
-                className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+                type="button"
+                className={`filter-btn filter-all ${filter === 'all' ? 'active' : ''}`}
                 onClick={() => setFilter('all')}
               >
                 All
               </button>
               <button
-                className={`filter-btn ${filter === 'in-progress' ? 'active' : ''}`}
+                type="button"
+                className={`filter-btn filter-in-progress ${filter === 'in-progress' ? 'active' : ''}`}
                 onClick={() => setFilter('in-progress')}
               >
                 In Progress
               </button>
               <button
-                className={`filter-btn ${filter === 'completed' ? 'active' : ''}`}
+                type="button"
+                className={`filter-btn filter-completed ${filter === 'completed' ? 'active' : ''}`}
                 onClick={() => setFilter('completed')}
               >
                 Completed
               </button>
               <button
-                className={`filter-btn ${filter === 'quality-check' ? 'active' : ''}`}
+                type="button"
+                className={`filter-btn filter-quality-check ${filter === 'quality-check' ? 'active' : ''}`}
                 onClick={() => setFilter('quality-check')}
               >
                 QC
               </button>
             </div>
             <button
+              type="button"
               className="btn-add-batch"
               onClick={() => setShowAddBatch(!showAddBatch)}
             >

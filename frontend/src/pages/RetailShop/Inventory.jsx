@@ -7,70 +7,7 @@ function Inventory({ products = [] }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('name')
 
-  const mockInventory = [
-    {
-      id: 'N95-001',
-      name: 'N95 Mask Box (50pcs)',
-      category: 'PPE',
-      stock: 120,
-      reorderLevel: 50,
-      price: 45.99,
-      verified: true,
-      status: 'in-stock',
-    },
-    {
-      id: 'IV-002',
-      name: 'IV Set Standard',
-      category: 'Medical Supplies',
-      stock: 34,
-      reorderLevel: 40,
-      price: 12.50,
-      verified: true,
-      status: 'low-stock',
-    },
-    {
-      id: 'CARE-003',
-      name: 'Home Care Kit',
-      category: 'Kits',
-      stock: 12,
-      reorderLevel: 20,
-      price: 89.99,
-      verified: false,
-      status: 'low-stock',
-    },
-    {
-      id: 'GLOVE-004',
-      name: 'Nitrile Gloves (100pcs)',
-      category: 'PPE',
-      stock: 78,
-      reorderLevel: 60,
-      price: 24.99,
-      verified: true,
-      status: 'in-stock',
-    },
-    {
-      id: 'THERM-005',
-      name: 'Digital Thermometer',
-      category: 'Diagnostics',
-      stock: 45,
-      reorderLevel: 30,
-      price: 15.99,
-      verified: true,
-      status: 'in-stock',
-    },
-    {
-      id: 'BAND-006',
-      name: 'Adhesive Bandages (100pcs)',
-      category: 'First Aid',
-      stock: 5,
-      reorderLevel: 25,
-      price: 8.99,
-      verified: true,
-      status: 'critical',
-    },
-  ]
-
-  const displayInventory = products.length > 0 ? products : mockInventory
+  const displayInventory = products
 
   const filteredInventory = displayInventory
     .filter((item) => {
@@ -143,19 +80,22 @@ function Inventory({ products = [] }) {
             </select>
             <div className="filter-buttons">
               <button
-                className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+                type="button"
+                className={`filter-btn filter-all ${filter === 'all' ? 'active' : ''}`}
                 onClick={() => setFilter('all')}
               >
                 All
               </button>
               <button
-                className={`filter-btn ${filter === 'low-stock' ? 'active' : ''}`}
+                type="button"
+                className={`filter-btn filter-low-stock ${filter === 'low-stock' ? 'active' : ''}`}
                 onClick={() => setFilter('low-stock')}
               >
                 Low Stock
               </button>
               <button
-                className={`filter-btn ${filter === 'verified' ? 'active' : ''}`}
+                type="button"
+                className={`filter-btn filter-verified ${filter === 'verified' ? 'active' : ''}`}
                 onClick={() => setFilter('verified')}
               >
                 Verified

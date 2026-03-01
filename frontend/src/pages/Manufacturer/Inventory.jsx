@@ -27,36 +27,12 @@ function normalizeProducts(products = []) {
   })
 }
 
-const mockInventory = [
-  {
-    sku: 'N95-KIT',
-    productName: 'N95 Safety Kit',
-    category: 'PPE',
-    rawMaterial: 'Polypropylene',
-    stockLevel: 1200,
-    reorderPoint: 500,
-    unitCost: 42.5,
-    status: 'adequate',
-  },
-  {
-    sku: 'IV-SET',
-    productName: 'IV Set',
-    category: 'Medical Supplies',
-    rawMaterial: 'Medical Grade PVC',
-    stockLevel: 760,
-    reorderPoint: 400,
-    unitCost: 15.0,
-    status: 'adequate',
-  },
-]
-
 function Inventory({ products = [] }) {
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
 
   const displayInventory = useMemo(() => {
-    const normalized = normalizeProducts(products)
-    return normalized.length ? normalized : mockInventory
+    return normalizeProducts(products)
   }, [products])
 
   const filteredInventory = displayInventory
@@ -100,16 +76,25 @@ function Inventory({ products = [] }) {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 <div className="filter-buttons">
-                  <button className={`filter-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>
+                  <button
+                    type="button"
+                    className={`filter-btn filter-all ${filter === 'all' ? 'active' : ''}`}
+                    onClick={() => setFilter('all')}
+                  >
                     All
                   </button>
                   <button
-                    className={`filter-btn ${filter === 'adequate' ? 'active' : ''}`}
+                    type="button"
+                    className={`filter-btn filter-adequate ${filter === 'adequate' ? 'active' : ''}`}
                     onClick={() => setFilter('adequate')}
                   >
                     Adequate
                   </button>
-                  <button className={`filter-btn ${filter === 'low' ? 'active' : ''}`} onClick={() => setFilter('low')}>
+                  <button
+                    type="button"
+                    className={`filter-btn filter-low ${filter === 'low' ? 'active' : ''}`}
+                    onClick={() => setFilter('low')}
+                  >
                     Low Stock
                   </button>
                 </div>

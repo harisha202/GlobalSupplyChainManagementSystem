@@ -154,6 +154,58 @@
   border-color: #0ea5e9;
 }
 
+.filter-btn.filter-all {
+  border-color: #7dd3fc;
+  color: #0369a1;
+  background: #f0f9ff;
+}
+
+.filter-btn.filter-adequate,
+.filter-btn.filter-completed {
+  border-color: #86efac;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.filter-btn.filter-low,
+.filter-btn.filter-in-progress {
+  border-color: #fdba74;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.filter-btn.filter-quality-check {
+  border-color: #c4b5fd;
+  color: #5b21b6;
+  background: #f5f3ff;
+}
+
+.filter-btn.active.filter-all {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.filter-btn.active.filter-adequate,
+.filter-btn.active.filter-completed {
+  background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+  color: #ffffff;
+  border-color: #166534;
+}
+
+.filter-btn.active.filter-low,
+.filter-btn.active.filter-in-progress {
+  background: linear-gradient(135deg, #fb923c 0%, #ea580c 100%);
+  color: #ffffff;
+  border-color: #c2410c;
+}
+
+.filter-btn.active.filter-quality-check {
+  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+  color: #ffffff;
+  border-color: #6d28d9;
+}
+
 .btn-add-batch {
   padding: 10px 20px;
   border: none;

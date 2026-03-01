@@ -5,16 +5,7 @@ function POS({ products = [] }) {
   const [cart, setCart] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
-
-  const mockProducts = [
-    { id: 'N95-001', name: 'N95 Mask Box (50pcs)', price: 45.99, stock: 120, verified: true },
-    { id: 'IV-002', name: 'IV Set Standard', price: 12.50, stock: 34, verified: true },
-    { id: 'CARE-003', name: 'Home Care Kit', price: 89.99, stock: 12, verified: false },
-    { id: 'GLOVE-004', name: 'Nitrile Gloves (100pcs)', price: 24.99, stock: 78, verified: true },
-    { id: 'THERM-005', name: 'Digital Thermometer', price: 15.99, stock: 45, verified: true },
-  ]
-
-  const displayProducts = products.length > 0 ? products : mockProducts
+  const displayProducts = products
 
   const addToCart = (product) => {
     const existingItem = cart.find((item) => item.id === product.id)
@@ -77,6 +68,12 @@ function POS({ products = [] }) {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="product-grid">
+            {filteredProducts.length === 0 && (
+              <div className="empty-cart">
+                <p>No products available</p>
+                <p className="empty-cart-hint">Inventory data will appear here after backend sync</p>
+              </div>
+            )}
             {filteredProducts.map((product) => (
               <div key={product.id} className="product-card">
                 <div className="product-info">
@@ -89,7 +86,7 @@ function POS({ products = [] }) {
                   </div>
                 </div>
                 <button
-                  className="btn-add-cart"
+                  className={`btn-add-cart ${product.stock === 0 ? 'is-disabled' : ''}`}
                   onClick={() => addToCart(product)}
                   disabled={product.stock === 0}
                 >

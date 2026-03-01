@@ -95,12 +95,14 @@ function Sales({ salesData = [] }) {
             <h4 className="card-title">Sales Trend</h4>
             <div className="period-selector">
               <button
+                type="button"
                 className={`period-btn ${period === 'week' ? 'active' : ''}`}
                 onClick={() => setPeriod('week')}
               >
                 Week
               </button>
               <button
+                type="button"
                 className={`period-btn ${period === 'month' ? 'active' : ''}`}
                 onClick={() => setPeriod('month')}
               >
