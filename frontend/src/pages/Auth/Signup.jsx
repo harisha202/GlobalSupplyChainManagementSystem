@@ -92,7 +92,7 @@ function Signup({ role, onSubmit, onBack }) {
         await onSubmit?.({ name, email, password, role })
         return
       }
-      setError('Failed to send verification code')
+      setError(submitError?.message ?? 'Failed to send verification code')
     } finally {
       setIsLoading(false)
     }
@@ -175,8 +175,8 @@ function Signup({ role, onSubmit, onBack }) {
       setOtp(['', '', '', '', '', ''])
       setOtpError('')
       startResendTimer()
-    } catch {
-      setOtpError('Failed to resend OTP')
+    } catch (resendError) {
+      setOtpError(resendError?.message ?? 'Failed to resend OTP')
     }
   }
 
@@ -208,7 +208,10 @@ function Signup({ role, onSubmit, onBack }) {
   return (
     <main className="auth-scene auth-signup-theme">
       <form onSubmit={handleSubmit} className="auth-panel auth-signup-panel">
-        <h2 className="auth-panel-title">Signup ({role})</h2>
+        <h2 className="auth-panel-title">
+          Signup
+          <span className="signup-role-label">({role})</span>
+        </h2>
         <p className="auth-panel-subtitle">Create your account to continue.</p>
 
         <div className="auth-field-group">

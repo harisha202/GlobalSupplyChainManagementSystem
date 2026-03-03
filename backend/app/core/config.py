@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,50 @@ class Settings:
 
 class ConfigurationError(RuntimeError):
     """Raised when required environment configuration is invalid."""
+
+
+_ENV_LOADED = False
+
+
+def _load_env_file(path: Path) -> None:
+    if not path.exists() or not path.is_file():
+        return
+
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+
+        # Keep explicit shell env vars higher priority than .env files.
+        os.environ.setdefault(key, value)
+
+
+def _load_env_files_once() -> None:
+    global _ENV_LOADED
+    if _ENV_LOADED:
+        return
+
+    backend_root = Path(__file__).resolve().parents[2]
+    project_root = backend_root.parent
+
+    # Load root .env first, then backend/.env to allow backend-specific overrides.
+    _load_env_file(project_root / ".env")
+    _load_env_file(backend_root / ".env")
+    _ENV_LOADED = True
 
 
 def _to_bool(value: str) -> bool:
@@ -63,6 +108,7 @@ def validate_settings(settings: Settings) -> None:
 
 @lru_cache
 def get_settings() -> Settings:
+    _load_env_files_once()
     app_env = os.getenv("APP_ENV", "development")
     default_mock_email = "true" if app_env.lower() == "development" else "false"
 

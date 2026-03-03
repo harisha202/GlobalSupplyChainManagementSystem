@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -122,13 +121,12 @@ class MockEmailService(EmailService):
 
 def get_email_service() -> EmailService:
     settings = get_settings()
-    env = settings.app_env.lower()
 
-    if settings.mock_email_delivery or env == "development":
+    if settings.mock_email_delivery:
         return MockEmailService()
 
     # If credentials are not configured, force mock mode to avoid runtime SMTP failures.
-    if not os.getenv("SENDER_PASSWORD") and not settings.sender_password:
+    if not settings.sender_email.strip() or not settings.sender_password.strip():
         return MockEmailService()
 
     return EmailService()
