@@ -28,7 +28,7 @@ function BlockchainBadge({ label = 'Blockchain Verified', hash }) {
       <span>{label}</span>
       {hash && (
         <>
-          <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>{truncateHash(hash)}</code>
+          <code style={{ fontFamily: 'inherit', fontSize: 11 }}>{truncateHash(hash)}</code>
           <button type="button" className="hash-copy" onClick={copyHash} title="Click to copy hash">
             {copied ? 'Copied' : 'Copy'}
           </button>

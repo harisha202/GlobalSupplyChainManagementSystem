@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import LorryIcon from './LorryIcon'
 import { getShipmentDetails } from './shipmentUtils'
 import Table from '../../components/common/Table'
 
-// ─── Stars ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Stars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Stars({ rating }) {
   const r = parseFloat(rating) || 0
   return (
@@ -23,7 +23,7 @@ function Stars({ rating }) {
   )
 }
 
-// ─── Driver Detail Panel (slide-in) ──────────────────────────────────────────
+// â”€â”€â”€ Driver Detail Panel (slide-in) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function DriverDetailPanel({ vehicle, onClose }) {
   if (!vehicle) return null
 
@@ -43,7 +43,6 @@ function DriverDetailPanel({ vehicle, onClose }) {
   return (
     <div className="fleet-detail-panel">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
         @keyframes fleetPanelIn {
           from { transform: translateX(20px); opacity: 0; }
           to   { transform: translateX(0);    opacity: 1; }
@@ -59,7 +58,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
           border-left: 1px solid rgba(14,165,233,0.14);
           z-index: 999;
           overflow-y: auto;
-          font-family: 'Sora', sans-serif;
+          font-family: inherit;
           animation: fleetPanelIn 0.2s ease;
           box-shadow: -8px 0 32px rgba(0,0,0,0.5);
         }
@@ -75,7 +74,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
           z-index: 2;
         }
         .fdp-label { font-size: 9px; letter-spacing: 2px; color: #93c5fd; text-transform: uppercase; margin-bottom: 3px; }
-        .fdp-vehicle-id { font-size: 15px; font-weight: 800; color: #e0f2fe; font-family: 'JetBrains Mono', monospace; }
+        .fdp-vehicle-id { font-size: 15px; font-weight: 800; color: #e0f2fe; font-family: inherit; }
         .fdp-close {
           background: rgba(255,255,255,0.04); border: none; cursor: pointer;
           width: 30px; height: 30px; border-radius: 8px; color: #475569;
@@ -158,7 +157,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
         .fdp-kv { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 11px; }
         .fdp-kv:last-child { border-bottom: none; }
         .fdp-kv-key { color: #cbd5e1; }
-        .fdp-kv-val { color: #94a3b8; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+        .fdp-kv-val { color: #94a3b8; font-family: inherit; font-size: 10px; }
         .fdp-kv-val.live { color: #34d399; }
 
         .fdp-feedback {
@@ -175,7 +174,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
           <div className="fdp-label">Fleet Vehicle</div>
           <div className="fdp-vehicle-id">{vehicle.vehicleNumber}</div>
         </div>
-        <button className="fdp-close" onClick={onClose}>×</button>
+        <button className="fdp-close" onClick={onClose}>Ã—</button>
       </div>
 
       {/* Driver Identity */}
@@ -208,7 +207,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
           borderColor: vehicle.hasGps ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.2)',
           color: vehicle.hasGps ? '#34d399' : '#64748b',
         }}>
-          {vehicle.hasGps ? '📡 Live GPS' : '📵 No Signal'}
+          {vehicle.hasGps ? 'ðŸ“¡ Live GPS' : 'ðŸ“µ No Signal'}
         </span>
       </div>
 
@@ -220,7 +219,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
             <LorryIcon style={{ width: 26, height: 26, color: '#38bdf8' }} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, color: '#e0f2fe', fontSize: 14, fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ fontWeight: 700, color: '#e0f2fe', fontSize: 14, fontFamily: "inherit" }}>
               {vehicle.vehicleNumber}
             </div>
             <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 2 }}>Shipment: {vehicle.id}</div>
@@ -282,7 +281,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
           </div>
           <div className="fdp-kv">
             <span className="fdp-kv-key">Signal</span>
-            <span className="fdp-kv-val live">● Active</span>
+            <span className="fdp-kv-val live">â— Active</span>
           </div>
         </div>
       )}
@@ -296,7 +295,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
   )
 }
 
-// ─── FleetManager ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ FleetManager â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function FleetManager({ shipments = {} }) {
   const [filter, setFilter] = useState('all')
   const [selectedVehicle, setSelectedVehicle] = useState(null)
@@ -336,8 +335,7 @@ function FleetManager({ shipments = {} }) {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
-        .fleet-manager-container { font-family: 'Sora', sans-serif; }
+        .fleet-manager-container { font-family: inherit; }
 
         .fleet-filters { display: flex; gap: 8px; flex-wrap: wrap; }
         .fleet-filter-btn {
@@ -349,7 +347,7 @@ function FleetManager({ shipments = {} }) {
           font-size: 12px; font-weight: 600;
           cursor: pointer;
           transition: all 0.15s;
-          font-family: 'Sora', sans-serif;
+          font-family: inherit;
         }
         .fleet-filter-btn:hover {
           background: rgba(14,165,233,0.08);
@@ -394,7 +392,7 @@ function FleetManager({ shipments = {} }) {
         .fleet-status-dot { width: 5px; height: 5px; border-radius: 50%; }
 
         .fleet-gps-badge {
-          font-size: 10px; font-family: 'JetBrains Mono', monospace;
+          font-size: 10px; font-family: inherit;
           padding: 2px 7px; border-radius: 4px;
         }
         .fleet-gps-badge.live {
@@ -420,7 +418,7 @@ function FleetManager({ shipments = {} }) {
               { key: 'all', label: `All (${counts.all})` },
               { key: 'active', label: `Active (${counts.active})` },
               { key: 'delayed', label: `Delayed (${counts.delayed})`, cls: 'delayed-btn' },
-              { key: 'gps', label: `📡 Live GPS (${counts.gps})` },
+              { key: 'gps', label: `ðŸ“¡ Live GPS (${counts.gps})` },
             ].map(({ key, label, cls = '' }) => (
               <button
                 key={key}
@@ -446,7 +444,7 @@ function FleetManager({ shipments = {} }) {
                       color: row.isDelayed ? '#f87171' : '#38bdf8',
                     }} />
                   </div>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#cbd5e1', fontWeight: 600 }}>
+                  <span style={{ fontFamily: "inherit", fontSize: 12, color: '#cbd5e1', fontWeight: 600 }}>
                     {row.vehicleNumber}
                   </span>
                 </div>
@@ -497,7 +495,7 @@ function FleetManager({ shipments = {} }) {
               render: (_, row) => (
                 <span style={{ fontSize: 11, color: '#64748b' }}>
                   <span style={{ color: '#94a3b8' }}>{row.origin}</span>
-                  <span style={{ color: '#334155', margin: '0 4px' }}>→</span>
+                  <span style={{ color: '#334155', margin: '0 4px' }}>â†’</span>
                   <span style={{ color: '#94a3b8' }}>{row.destination}</span>
                 </span>
               ),
@@ -507,7 +505,7 @@ function FleetManager({ shipments = {} }) {
               label: 'GPS Location',
               render: (_, row) => (
                 <span className={`fleet-gps-badge ${row.hasGps ? 'live' : 'offline'}`}>
-                  {row.hasGps ? `● ${row.lat?.toFixed(2)}, ${row.lng?.toFixed(2)}` : '✕ No signal'}
+                  {row.hasGps ? `â— ${row.lat?.toFixed(2)}, ${row.lng?.toFixed(2)}` : 'âœ• No signal'}
                 </span>
               ),
             },
@@ -515,7 +513,7 @@ function FleetManager({ shipments = {} }) {
               key: 'lastUpdate',
               label: 'Last Update',
               render: (val) => (
-                <span style={{ fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
+                <span style={{ fontSize: 11, color: '#475569', fontFamily: "inherit" }}>
                   {val !== '--' ? val : 'N/A'}
                 </span>
               ),
@@ -542,3 +540,5 @@ function FleetManager({ shipments = {} }) {
 }
 
 export default FleetManager
+
+

@@ -13,6 +13,7 @@ import './manufacturer.css'
 
 const baseHistory = [0, 0, 0, 0, 0, 0]
 const projected = forecastDemand(baseHistory, 3)
+const LIVE_REFRESH_MS = 15000
 
 function ManufacturerDashboard({
   user,
@@ -90,8 +91,10 @@ function ManufacturerDashboard({
     }
 
     loadData()
+    const intervalId = setInterval(loadData, LIVE_REFRESH_MS)
     return () => {
       mounted = false
+      clearInterval(intervalId)
     }
   }, [])
 

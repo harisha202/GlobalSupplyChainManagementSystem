@@ -6,6 +6,7 @@ import PieChart from '../../components/charts/PieChart'
 import StatusDonut from '../../components/charts/StatusDonut'
 import Loader from '../../components/common/Loader'
 import DashboardLayout from '../../components/layout/DashboardLayout'
+import { formatINR } from '../../utils/currency'
 import './../Admin/admin.css'
 
 const DEFAULT_API_METRICS = {
@@ -28,6 +29,8 @@ const DEFAULT_SYSTEM_STATUS = [
   { label: 'Issues', value: 12, color: '#ef4444' },
   { label: 'Maintenance', value: 8, color: '#6b7280' },
 ]
+
+const LIVE_REFRESH_MS = 15000
 
 function generateMockRevenue() {
   const days = 30
@@ -53,8 +56,10 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
   useEffect(() => {
     let mounted = true
 
-    async function fetchAnalyticsData() {
-      setLoading(true)
+    async function fetchAnalyticsData(showLoader = false) {
+      if (showLoader) {
+        setLoading(true)
+      }
       try {
         const response = await adminApi.analytics(timeRange)
         if (!mounted) {
@@ -82,23 +87,31 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
           apiMetrics: prev.apiMetrics || DEFAULT_API_METRICS,
         }))
       } finally {
-        if (mounted) {
+        if (mounted && showLoader) {
           setLoading(false)
         }
       }
     }
 
-    fetchAnalyticsData()
+    fetchAnalyticsData(true)
+    const intervalId = setInterval(() => {
+      fetchAnalyticsData(false)
+    }, LIVE_REFRESH_MS)
     return () => {
       mounted = false
+      clearInterval(intervalId)
     }
   }, [timeRange])
 
+  const totalRevenue = analyticsData.revenue.reduce((sum, value) => sum + Number(value || 0), 0)
+  const activeUsers = analyticsData.userDistribution.reduce((sum, item) => sum + Number(item.value || 0), 0)
+  const shipments = analyticsData.systemStatus.reduce((sum, item) => sum + Number(item.value || 0), 0)
+
   const stats = [
-    { label: 'Total Revenue', value: 'INR 12.5L', trend: '+15%' },
-    { label: 'Active Users', value: '1,301', trend: '+8%' },
-    { label: 'Shipments', value: '2,847', trend: '+12%' },
-    { label: 'Verifications', value: '4,523', trend: '+5%' },
+    { label: 'Total Revenue', value: formatINR(totalRevenue, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), trend: 'Live' },
+    { label: 'Active Users', value: Number(activeUsers || 0).toLocaleString('en-IN'), trend: 'Live' },
+    { label: 'Shipments', value: Number(shipments || 0).toLocaleString('en-IN'), trend: 'Live' },
+    { label: 'Verifications', value: Number(analyticsData.apiMetrics.blockchain || 0).toLocaleString('en-IN'), trend: 'Live' },
   ]
 
   if (loading) {

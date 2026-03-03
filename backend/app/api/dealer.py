@@ -15,6 +15,7 @@ from app.services.database_service import (
     create_order,
     get_order,
     get_product_by_sku,
+    format_inr,
     list_dealer_arrivals,
     list_orders,
     list_products,
@@ -293,7 +294,7 @@ def recent_orders() -> dict:
         {
             "orderId": item["orderCode"],
             "retailer": item["retailer"],
-            "amount": f"${float(item['amount']):,.2f}",
+            "amount": format_inr(float(item["amount"]), decimals=2),
             "status": str(item["status"]).replace("_", " ").title(),
             "date": (item["createdAt"] or "")[:10],
             "shipmentId": item["shipmentId"],

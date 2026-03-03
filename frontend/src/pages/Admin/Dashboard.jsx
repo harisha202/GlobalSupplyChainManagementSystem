@@ -5,7 +5,10 @@ import PieChart from '../../components/charts/PieChart'
 import Loader from '../../components/common/Loader'
 import Table from '../../components/common/Table'
 import DashboardLayout from '../../components/layout/DashboardLayout'
+import { formatINR } from '../../utils/currency'
 import './admin.css'
+
+const LIVE_REFRESH_MS = 15000
 
 function AdminDashboard({ user, onLogout, onNavigate, currentPath }) {
   const [summary, setSummary] = useState({
@@ -20,6 +23,7 @@ function AdminDashboard({ user, onLogout, onNavigate, currentPath }) {
 
   useEffect(() => {
     let mounted = true
+
     async function loadAdminData() {
       try {
         const [statsPayload, aiPayload] = await Promise.all([
@@ -36,9 +40,12 @@ function AdminDashboard({ user, onLogout, onNavigate, currentPath }) {
         }
       }
     }
+
     loadAdminData()
+    const intervalId = setInterval(loadAdminData, LIVE_REFRESH_MS)
     return () => {
       mounted = false
+      clearInterval(intervalId)
     }
   }, [])
 
@@ -48,7 +55,7 @@ function AdminDashboard({ user, onLogout, onNavigate, currentPath }) {
       { label: 'Total Products', value: summary.total_products, trend: 'Live backend' },
       { label: 'Total Batches', value: summary.total_batches, trend: 'Live backend' },
       { label: 'Active Shipments', value: summary.active_shipments, trend: 'Live backend' },
-      { label: 'Revenue', value: `$${summary.revenue}`, trend: 'Computed backend' },
+      { label: 'Revenue', value: formatINR(summary.revenue, { minimumFractionDigits: 0, maximumFractionDigits: 2 }), trend: 'Computed backend' },
     ],
     [summary],
   )

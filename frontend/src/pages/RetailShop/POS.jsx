@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { inventoryApi } from '../../api/axiosInstance'
 import BlockchainBadge from '../../components/blockchain/BlockchainBadge'
+import { formatINR } from '../../utils/currency'
 
 function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
   const [cart, setCart] = useState([])
@@ -48,7 +49,7 @@ function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
   }
 
   const calculateTotal = () => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)
+    return cart.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0)
   }
 
   const handleCheckout = async () => {
@@ -121,7 +122,7 @@ function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
                   <p className="product-id">SKU: {product.id}</p>
                   <p className="product-stock">Stock: {product.stock}</p>
                   <div className="product-footer">
-                    <span className="product-price">${product.price}</span>
+                    <span className="product-price">{formatINR(product.price, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     {product.verified && <BlockchainBadge label="Verified" />}
                   </div>
                 </div>
@@ -151,7 +152,7 @@ function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
                   <div key={item.id} className="cart-item">
                     <div className="cart-item-info">
                       <h5 className="cart-item-name">{item.name}</h5>
-                      <p className="cart-item-price">${item.price}</p>
+                      <p className="cart-item-price">{formatINR(item.price, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                     <div className="cart-item-controls">
                       <button
@@ -175,7 +176,7 @@ function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
                       </button>
                     </div>
                     <div className="cart-item-total">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      {formatINR(item.price * item.quantity, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                   </div>
                 ))}
@@ -197,7 +198,7 @@ function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
                 </div>
                 <div className="cart-total">
                   <span className="total-label">Total:</span>
-                  <span className="total-amount">${calculateTotal()}</span>
+                  <span className="total-amount">{formatINR(calculateTotal(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <button className="btn-checkout" onClick={handleCheckout} disabled={isCheckingOut}>
                   {isCheckingOut ? 'Saving...' : 'Complete Purchase'}

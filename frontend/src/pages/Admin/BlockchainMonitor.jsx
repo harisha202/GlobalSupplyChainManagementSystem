@@ -158,7 +158,7 @@ function Blockchain({ user, onLogout, onNavigate, currentPath }) {
 
   const tableRows = filteredTransactions.map(tx => ({
     transactionHash: (
-      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+      <span style={{ fontFamily: 'inherit', fontSize: 12 }}>
         {tx.transactionHash?.substring(0, 16)}...
       </span>
     ),
@@ -379,7 +379,7 @@ function Blockchain({ user, onLogout, onNavigate, currentPath }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 4px 0' }}>Transaction Hash</p>
-                  <p style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all', margin: 0 }}>
+                  <p style={{ fontFamily: 'inherit', fontSize: 12, wordBreak: 'break-all', margin: 0 }}>
                     {selectedTx.transactionHash}
                   </p>
                 </div>
@@ -403,7 +403,7 @@ function Blockchain({ user, onLogout, onNavigate, currentPath }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 4px 0' }}>Block Number</p>
-                  <p style={{ fontFamily: 'monospace', margin: 0 }}>
+                  <p style={{ fontFamily: 'inherit', margin: 0 }}>
                     {selectedTx.blockNumber || 'Pending'}
                   </p>
                 </div>

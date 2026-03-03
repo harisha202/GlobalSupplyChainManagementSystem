@@ -259,6 +259,33 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return round(radius * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))), 2)
 
 
+def _format_indian_grouping(number_text: str) -> str:
+    if len(number_text) <= 3:
+        return number_text
+    head = number_text[:-3]
+    tail = number_text[-3:]
+    groups: list[str] = []
+    while len(head) > 2:
+        groups.insert(0, head[-2:])
+        head = head[:-2]
+    if head:
+        groups.insert(0, head)
+    return ",".join([*groups, tail])
+
+
+def format_inr(amount: float, decimals: int = 2) -> str:
+    rounded = float(amount or 0.0)
+    precision = max(0, int(decimals))
+    absolute = abs(rounded)
+    rendered = f"{absolute:.{precision}f}" if precision else f"{absolute:.0f}"
+    integer_part, dot, fraction_part = rendered.partition(".")
+    grouped_integer = _format_indian_grouping(integer_part)
+    sign = "-" if rounded < 0 else ""
+    if dot:
+        return f"{sign}INR {grouped_integer}.{fraction_part}"
+    return f"{sign}INR {grouped_integer}"
+
+
 def _seed_defaults() -> None:
     now = _utc_now()
     with _engine().begin() as conn:
@@ -1207,7 +1234,7 @@ def get_sales_analytics(period: str = "week") -> dict:
         {
             "product": product_names.get(sku, sku),
             "units": units,
-            "revenue": f"${revenue_by_sku.get(sku, 0.0):,.2f}",
+            "revenue": format_inr(revenue_by_sku.get(sku, 0.0), decimals=2),
             "growth": "+5%" if units > 0 else "0%",
         }
         for sku, units in sorted(units_by_sku.items(), key=lambda kv: kv[1], reverse=True)
@@ -1221,7 +1248,7 @@ def get_sales_analytics(period: str = "week") -> dict:
                 "id": f"TXN-{row.get('id')}",
                 "time": sold_at.strftime("%H:%M") if isinstance(sold_at, datetime) else "--:--",
                 "items": int(row.get("units_sold") or 0),
-                "amount": f"${float(row.get('sale_amount') or 0.0):,.2f}",
+                "amount": format_inr(float(row.get("sale_amount") or 0.0), decimals=2),
                 "payment": "Card",
                 "status": "Completed",
             }
@@ -1238,10 +1265,10 @@ def get_sales_analytics(period: str = "week") -> dict:
         "topProducts": top_products,
         "recentTransactions": recent_transactions,
         "salesStats": {
-            "today": f"${today_value:,.0f}",
-            "week": f"${week_value:,.0f}",
-            "month": f"${month_value:,.0f}",
-            "avgTransaction": f"${avg_tx:,.2f}",
+            "today": format_inr(today_value, decimals=0),
+            "week": format_inr(week_value, decimals=0),
+            "month": format_inr(month_value, decimals=0),
+            "avgTransaction": format_inr(avg_tx, decimals=2),
         },
     }
 

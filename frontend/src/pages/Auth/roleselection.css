@@ -5,8 +5,6 @@
    Signature: 3D role cards · Unique neon per role · Holographic check
    ═══════════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
-
 /* ── Design Tokens ──────────────────────────────────────────────── */
 :root {
   /* Deep steel grays */
@@ -54,8 +52,8 @@
   --rs-t-3d:     0.5s cubic-bezier(0.23, 1, 0.32, 1);
 
   /* Fonts */
-  --rs-font-display: 'Syne', sans-serif;
-  --rs-font-body:    'DM Sans', sans-serif;
+  --rs-font-display: var(--app-font-normal);
+  --rs-font-body:    var(--app-font-normal);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

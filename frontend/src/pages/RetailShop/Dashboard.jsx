@@ -8,7 +8,10 @@ import POS from './POS'
 import Scanner from './Scanner'
 import Inventory from './Inventory'
 import Sales from './Sales'
+import { formatINR } from '../../utils/currency'
 import './retail.css'
+
+const LIVE_REFRESH_MS = 15000
 
 function RetailShopDashboard({
   user,
@@ -45,9 +48,11 @@ function RetailShopDashboard({
     }
 
     hydrate()
+    const intervalId = setInterval(hydrate, LIVE_REFRESH_MS)
 
     return () => {
       mounted = false
+      clearInterval(intervalId)
     }
   }, [])
 
@@ -67,7 +72,7 @@ function RetailShopDashboard({
   const salesToday = salesData.length ? salesData[salesData.length - 1]?.value ?? 0 : 0
   const weeklySales = salesData.reduce((sum, row) => sum + Number(row?.value || 0), 0)
   const stats = [
-    { label: 'Store Sales Today', value: `$${Number(salesToday).toLocaleString()}`, trend: 'Live' },
+    { label: 'Store Sales Today', value: formatINR(salesToday, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), trend: 'Live' },
     { label: 'Customer Orders', value: Math.max(0, Math.round(weeklySales / 250)), trend: 'Live' },
     { label: 'Low Stock Alerts', value: lowStockCount, trend: 'Live' },
     { label: 'Verified Products', value: verifiedCount, trend: 'Live' },

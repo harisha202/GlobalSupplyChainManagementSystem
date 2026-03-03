@@ -192,10 +192,8 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
         .gps-map-container {
-          font-family: 'Sora', sans-serif;
+          font-family: inherit;
           position: relative;
           overflow: hidden;
         }
@@ -354,7 +352,7 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
           background: #0ea5e9;
           color: #fff;
           font-size: 8px; font-weight: 800;
-          font-family: 'JetBrains Mono', monospace;
+          font-family: inherit;
           padding: 2px 5px;
           border-radius: 5px;
           white-space: nowrap;
@@ -410,7 +408,7 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
           border: 5px solid transparent;
           border-top-color: #0f172a;
         }
-        .gps-tooltip-id { font-weight: 700; color: #e0f2fe; margin-bottom: 2px; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+        .gps-tooltip-id { font-weight: 700; color: #e0f2fe; margin-bottom: 2px; font-family: inherit; font-size: 10px; }
         .gps-tooltip-name { color: #94a3b8; }
         .gps-tooltip-route { color: #38bdf8; font-size: 10px; margin-top: 3px; }
 
@@ -423,7 +421,7 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
           border-left: 1px solid rgba(56,189,248,0.12);
           overflow-y: auto;
           z-index: 30;
-          font-family: 'Sora', sans-serif;
+          font-family: inherit;
         }
         .gps-driver-panel::-webkit-scrollbar { width: 4px; }
         .gps-driver-panel::-webkit-scrollbar-track { background: transparent; }
@@ -440,7 +438,7 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
         }
         .gps-driver-panel-id {
           font-size: 14px; font-weight: 700; color: #e0f2fe;
-          font-family: 'JetBrains Mono', monospace;
+          font-family: inherit;
         }
         .gps-driver-panel-close {
           background: rgba(255,255,255,0.05);
@@ -536,7 +534,7 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
           font-size: 11px; padding: 3px 0;
         }
         .gps-coords-label { color: #cbd5e1; }
-        .gps-coords-val { font-family: 'JetBrains Mono', monospace; color: #7dd3fc; }
+        .gps-coords-val { font-family: inherit; color: #7dd3fc; }
         .gps-coords-live { color: #34d399; }
 
         .gps-info-row {
@@ -580,7 +578,7 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
         .gps-strip-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .gps-strip-id {
           font-size: 11px; font-weight: 700; color: #7dd3fc;
-          font-family: 'JetBrains Mono', monospace;
+          font-family: inherit;
         }
         .gps-strip-partner { font-size: 12px; color: #cbd5e1; font-weight: 600; }
         .gps-strip-route { font-size: 11px; color: #cbd5e1; margin-top: 1px; }
@@ -599,7 +597,7 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
         }
       `}</style>
 
-      <section className="card gps-map-container" style={{ fontFamily: "'Sora', sans-serif" }}>
+      <section className="card gps-map-container" style={{ fontFamily: "inherit" }}>
         {/* Header */}
         <div className="shipments-header">
           <h4 className="card-title">Live GPS Tracking</h4>
@@ -747,4 +745,6 @@ function GPSMap({ shipments = {}, center = [20.5937, 78.9629], zoom = 5 }) {
 }
 
 export default GPSMap
+
+
 

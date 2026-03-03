@@ -5,8 +5,6 @@
    Signature: 3D perspective panel · Matrix rain subtle · Jade glow
    ═══════════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
-
 /* ── Design Tokens ──────────────────────────────────────────────── */
 :root {
   /* Backgrounds — absolute void */
@@ -94,8 +92,8 @@
   --a-t-3d:      0.5s cubic-bezier(0.23, 1, 0.32, 1);
 
   /* Fonts */
-  --a-font-display: 'Syne', sans-serif;
-  --a-font-body:    'DM Sans', sans-serif;
+  --a-font-display: var(--app-font-normal);
+  --a-font-body:    var(--app-font-normal);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

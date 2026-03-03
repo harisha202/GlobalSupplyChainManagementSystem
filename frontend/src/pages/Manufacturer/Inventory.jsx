@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import PieChart from '../../components/charts/PieChart'
 import Table from '../../components/common/Table'
+import { formatINR } from '../../utils/currency'
 
 function normalizeProducts(products = []) {
   return products.map((item, index) => {
@@ -112,7 +113,7 @@ function Inventory({ products = [] }) {
                 {
                   key: 'unitCost',
                   label: 'Unit Cost',
-                  render: (value) => `$${Number(value).toFixed(2)}`,
+                  render: (value) => formatINR(Number(value), { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
                 },
               ]}
               rows={filteredInventory}

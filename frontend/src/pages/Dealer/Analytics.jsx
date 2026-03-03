@@ -5,6 +5,7 @@ import PieChart from '../../components/charts/PieChart'
 import StatusDonut from '../../components/charts/StatusDonut'
 import Loader from '../../components/common/Loader'
 import DashboardLayout from '../../components/layout/DashboardLayout'
+import { formatINR } from '../../utils/currency'
 import './dealer.css'
 
 function normalizeCategoryData(items = []) {
@@ -23,6 +24,8 @@ function normalizeStatusData(items = []) {
   }))
 }
 
+const LIVE_REFRESH_MS = 15000
+
 function Analytics({ user, onLogout, onNavigate, currentPath }) {
   const [timeRange, setTimeRange] = useState('30d')
   const [loading, setLoading] = useState(true)
@@ -36,8 +39,10 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
   useEffect(() => {
     let mounted = true
 
-    async function fetchAnalytics() {
-      setLoading(true)
+    async function fetchAnalytics(showLoader = false) {
+      if (showLoader) {
+        setLoading(true)
+      }
       try {
         const response = await dealerApi.analytics(timeRange)
         if (mounted) {
@@ -54,13 +59,17 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
           setAnalyticsData({ revenue: [], topProducts: [], orderStatus: [], categoryMix: [] })
         }
       } finally {
-        if (mounted) setLoading(false)
+        if (mounted && showLoader) setLoading(false)
       }
     }
 
-    fetchAnalytics()
+    fetchAnalytics(true)
+    const intervalId = setInterval(() => {
+      fetchAnalytics(false)
+    }, LIVE_REFRESH_MS)
     return () => {
       mounted = false
+      clearInterval(intervalId)
     }
   }, [timeRange])
 
@@ -85,7 +94,7 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
   const stats = useMemo(() => [
     {
       label: `Revenue (${timeRange === '7d' ? 'Week' : timeRange === '90d' ? 'Quarter' : 'Month'})`,
-      value: `$${Math.round(metrics.totalRevenue).toLocaleString()}`,
+      value: formatINR(metrics.totalRevenue, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
       trend: 'Live',
     },
     {
@@ -95,7 +104,7 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
     },
     {
       label: 'Avg Order Value',
-      value: `$${Math.round(metrics.averageOrderValue).toLocaleString()}`,
+      value: formatINR(metrics.averageOrderValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
       trend: 'Live',
     },
     {
@@ -201,7 +210,7 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             <div style={{ padding: 16, background: '#eff6ff', borderRadius: 8 }}>
               <p style={{ fontSize: 12, color: '#1e40af', margin: '0 0 4px 0', fontWeight: 500 }}>Total Revenue</p>
-              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#3b82f6', margin: 0 }}>${Math.round(metrics.totalRevenue).toLocaleString()}</p>
+              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#3b82f6', margin: 0 }}>{formatINR(metrics.totalRevenue, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
             </div>
             <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8 }}>
               <p style={{ fontSize: 12, color: '#166534', margin: '0 0 4px 0', fontWeight: 500 }}>Total Orders</p>
@@ -209,7 +218,7 @@ function Analytics({ user, onLogout, onNavigate, currentPath }) {
             </div>
             <div style={{ padding: 16, background: '#fefce8', borderRadius: 8 }}>
               <p style={{ fontSize: 12, color: '#854d0e', margin: '0 0 4px 0', fontWeight: 500 }}>Average Order Value</p>
-              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#f59e0b', margin: 0 }}>${Math.round(metrics.averageOrderValue).toLocaleString()}</p>
+              <p style={{ fontSize: 24, fontWeight: 'bold', color: '#f59e0b', margin: 0 }}>{formatINR(metrics.averageOrderValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
             </div>
             <div style={{ padding: 16, background: '#faf5ff', borderRadius: 8 }}>
               <p style={{ fontSize: 12, color: '#6b21a8', margin: '0 0 4px 0', fontWeight: 500 }}>Top Category</p>

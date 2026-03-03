@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Table from '../../components/common/Table'
 import BlockchainBadge from '../../components/blockchain/BlockchainBadge'
+import { formatINR } from '../../utils/currency'
 
 function Inventory({ products = [] }) {
   const [filter, setFilter] = useState('all')
@@ -122,7 +123,7 @@ function Inventory({ products = [] }) {
             {
               key: 'price',
               label: 'Price',
-              render: (value) => `$${value.toFixed(2)}`,
+              render: (value) => formatINR(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
             },
             {
               key: 'verified',

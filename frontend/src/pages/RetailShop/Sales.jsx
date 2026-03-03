@@ -4,6 +4,9 @@ import BarChart from '../../components/charts/BarChart'
 import LineChart from '../../components/charts/LineChart'
 import Loader from '../../components/common/Loader'
 import Table from '../../components/common/Table'
+import { formatINR } from '../../utils/currency'
+
+const LIVE_REFRESH_MS = 15000
 
 function Sales({ salesData = [] }) {
   const [period, setPeriod] = useState('week')
@@ -12,17 +15,19 @@ function Sales({ salesData = [] }) {
   const [topProducts, setTopProducts] = useState([])
   const [recentTransactions, setRecentTransactions] = useState([])
   const [salesStats, setSalesStats] = useState({
-    today: '$0',
-    week: '$0',
-    month: '$0',
-    avgTransaction: '$0.00',
+    today: formatINR(0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+    week: formatINR(0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+    month: formatINR(0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+    avgTransaction: formatINR(0, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
   })
 
   useEffect(() => {
     let mounted = true
 
-    async function loadSalesAnalytics() {
-      setLoading(true)
+    async function loadSalesAnalytics(showLoader = false) {
+      if (showLoader) {
+        setLoading(true)
+      }
       try {
         const payload = await inventoryApi.salesAnalytics(period)
         if (!mounted) {
@@ -34,10 +39,10 @@ function Sales({ salesData = [] }) {
         setRecentTransactions(payload?.recentTransactions ?? [])
         setSalesStats(
           payload?.salesStats ?? {
-            today: '$0',
-            week: '$0',
-            month: '$0',
-            avgTransaction: '$0.00',
+            today: formatINR(0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+            week: formatINR(0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+            month: formatINR(0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+            avgTransaction: formatINR(0, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           },
         )
       } catch (error) {
@@ -48,15 +53,19 @@ function Sales({ salesData = [] }) {
           setRecentTransactions([])
         }
       } finally {
-        if (mounted) {
+        if (mounted && showLoader) {
           setLoading(false)
         }
       }
     }
 
-    loadSalesAnalytics()
+    loadSalesAnalytics(true)
+    const intervalId = setInterval(() => {
+      loadSalesAnalytics(false)
+    }, LIVE_REFRESH_MS)
     return () => {
       mounted = false
+      clearInterval(intervalId)
     }
   }, [period, salesData])
 

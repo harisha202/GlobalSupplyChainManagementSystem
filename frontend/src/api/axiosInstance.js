@@ -1,4 +1,5 @@
 import { getAuthState, logout } from '../store/useAuthStore'
+import { normalizeCurrencyString } from '../utils/currency'
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -211,7 +212,7 @@ async function request(path, { method = 'GET', data, headers = {}, responseType 
     const rawBody = await safeReadText(response)
     const payload = tryParseJson(rawBody)
     if (payload !== null) {
-      return payload
+      return normalizeCurrencyPayload(payload)
     }
     return rawBody || null
   }
@@ -824,9 +825,32 @@ function cloneData(value) {
   return cloned
 }
 
+function normalizeCurrencyPayload(value) {
+  if (value === null || value === undefined) {
+    return value
+  }
+  if (value instanceof Blob) {
+    return value
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeCurrencyPayload)
+  }
+  if (typeof value === 'object') {
+    const normalized = {}
+    for (const [key, item] of Object.entries(value)) {
+      normalized[key] = normalizeCurrencyPayload(item)
+    }
+    return normalized
+  }
+  if (typeof value === 'string') {
+    return normalizeCurrencyString(value)
+  }
+  return value
+}
+
 function resolveFallback(fallback, args) {
   const value = typeof fallback === 'function' ? fallback(...args) : fallback
-  return cloneData(value)
+  return normalizeCurrencyPayload(cloneData(value))
 }
 
 function withFallback(action, fallback, shouldFallback) {
@@ -838,7 +862,7 @@ function withFallback(action, fallback, shouldFallback) {
     }
 
     try {
-      const response = await action(...args)
+      const response = normalizeCurrencyPayload(await action(...args))
       if (typeof shouldFallback === 'function' && shouldFallback(response, ...args)) {
         if (allowFallback) {
           return resolveFallback(fallback, args)

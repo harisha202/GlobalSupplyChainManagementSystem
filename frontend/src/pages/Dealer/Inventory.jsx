@@ -4,7 +4,10 @@ import StatusDonut from '../../components/charts/StatusDonut'
 import Table from '../../components/common/Table'
 import Loader from '../../components/common/Loader'
 import DashboardLayout from '../../components/layout/DashboardLayout'
+import { formatINR } from '../../utils/currency'
 import './dealer.css'
+
+const LIVE_REFRESH_MS = 15000
 
 function toStockStatus(item) {
   if (item.stockStatus) return item.stockStatus
@@ -56,8 +59,10 @@ function Inventory({ user, onLogout, onNavigate, currentPath }) {
     }
 
     loadInventory()
+    const intervalId = setInterval(loadInventory, LIVE_REFRESH_MS)
     return () => {
       mounted = false
+      clearInterval(intervalId)
     }
   }, [])
 
@@ -86,7 +91,7 @@ function Inventory({ user, onLogout, onNavigate, currentPath }) {
       { label: 'Total SKUs', value: inventory.length, trend: 'Live' },
       { label: 'In Stock', value: inStock, trend: 'Live' },
       { label: 'Low Stock', value: lowStock, trend: 'Needs reorder' },
-      { label: 'Stock Value', value: `$${Math.round(totalValue).toLocaleString()}`, trend: 'Live' },
+      { label: 'Stock Value', value: formatINR(totalValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), trend: 'Live' },
     ]
   }, [inventory, stockStatusData])
 
@@ -133,7 +138,7 @@ function Inventory({ user, onLogout, onNavigate, currentPath }) {
         item.currentStock,
         item.minStock,
         item.maxStock,
-        `$${item.unitPrice}`,
+        formatINR(item.unitPrice, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         item.stockStatus,
       ]),
     ]
@@ -149,7 +154,7 @@ function Inventory({ user, onLogout, onNavigate, currentPath }) {
   }
 
   const inventoryRows = filteredInventory.map((item) => ({
-    sku: <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{item.sku}</span>,
+    sku: <span style={{ fontWeight: 600, fontFamily: 'inherit' }}>{item.sku}</span>,
     productName: item.productName,
     category: <span style={{ fontSize: 12, color: '#6b7280' }}>{item.category}</span>,
     stock: (
@@ -171,8 +176,8 @@ function Inventory({ user, onLogout, onNavigate, currentPath }) {
         </div>
       </div>
     ),
-    unitPrice: <span style={{ fontWeight: 600 }}>${item.unitPrice.toFixed(2)}</span>,
-    totalValue: <span style={{ fontWeight: 600, color: '#10b981' }}>${(item.currentStock * item.unitPrice).toLocaleString()}</span>,
+    unitPrice: <span style={{ fontWeight: 600 }}>{formatINR(item.unitPrice, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>,
+    totalValue: <span style={{ fontWeight: 600, color: '#10b981' }}>{formatINR(item.currentStock * item.unitPrice, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>,
     status: getStockBadge(item.stockStatus),
   }))
 

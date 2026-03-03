@@ -5,17 +5,15 @@ import AreaChart from '../../components/charts/AreaChart'
 import Table from '../../components/common/Table'
 import Loader from '../../components/common/Loader'
 import DashboardLayout from '../../components/layout/DashboardLayout'
+import { formatINR, parseAmount } from '../../utils/currency'
 
 import './dealer.css'
 
-function parseCurrency(value) {
-  const parsed = Number(String(value || '').replace(/[^0-9.-]/g, ''))
-  return Number.isFinite(parsed) ? parsed : 0
+function formatCurrency(value) {
+  return formatINR(Number(value || 0), { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
-function formatCurrency(value) {
-  return `$${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-}
+const LIVE_REFRESH_MS = 15000
 
 function mapOrderStatus(status) {
   const normalized = String(status || '').toLowerCase()
@@ -36,8 +34,8 @@ function normalizeOrders(items = []) {
   return items.map((order, index) => ({
     orderId: order.orderId || `DL-${3300 + index + 1}`,
     retailer: order.retailer || 'Retail Partner',
-    amount: formatCurrency(parseCurrency(order.amount)),
-    amountValue: parseCurrency(order.amount),
+    amount: formatCurrency(parseAmount(order.amount)),
+    amountValue: parseAmount(order.amount),
     status: mapOrderStatus(order.status),
     date: order.date || new Date().toISOString().slice(0, 10),
   }))
@@ -94,8 +92,10 @@ function DealerDashboard({ user, onLogout, onNavigate, currentPath }) {
     }
 
     loadDealerData()
+    const intervalId = setInterval(loadDealerData, LIVE_REFRESH_MS)
     return () => {
       mounted = false
+      clearInterval(intervalId)
     }
   }, [])
 
