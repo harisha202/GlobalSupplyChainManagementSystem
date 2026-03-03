@@ -1,9 +1,9 @@
-﻿import { useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Table from '../../components/common/Table'
 import LorryIcon from './LorryIcon'
 import { getInitials, getShipmentDetails } from './shipmentUtils'
 
-// â”€â”€â”€ Stars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Stars ────────────────────────────────────────────────────────────────────
 function Stars({ rating }) {
   const r = parseFloat(rating) || 0
   return (
@@ -23,7 +23,7 @@ function Stars({ rating }) {
   )
 }
 
-// â”€â”€â”€ Shipment Detail Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Shipment Detail Panel ────────────────────────────────────────────────────
 function ShipmentDetailPanel({ row, onClose }) {
   if (!row) return null
 
@@ -66,10 +66,11 @@ function ShipmentDetailPanel({ row, onClose }) {
         zIndex: 999,
         overflowY: 'auto',
         animation: 'sdpSlideIn 0.22s ease',
-        fontFamily: "inherit",
+        fontFamily: "'Sora', 'Segoe UI', sans-serif",
         boxShadow: '-6px 0 40px rgba(0,0,0,0.55)',
       }}>
         <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
           @keyframes sdpSlideIn {
             from { transform: translateX(28px); opacity: 0; }
             to   { transform: translateX(0);    opacity: 1; }
@@ -94,7 +95,7 @@ function ShipmentDetailPanel({ row, onClose }) {
           }
           .sdp-kv:last-child { border-bottom: none; }
           .sdp-kv-key { color: #cbd5e1; }
-          .sdp-kv-val { color: #94a3b8; font-family: inherit; font-size: 11px; }
+          .sdp-kv-val { color: #94a3b8; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
           .sdp-kv-val.live { color: #34d399; }
           .sdp-kv-val.warn { color: #f87171; }
         `}</style>
@@ -112,7 +113,7 @@ function ShipmentDetailPanel({ row, onClose }) {
             <div style={{ fontSize: 9, letterSpacing: 2, color: '#93c5fd', textTransform: 'uppercase', marginBottom: 3 }}>
               Shipment Detail
             </div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#e0f2fe', fontFamily: "inherit" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#e0f2fe', fontFamily: "'JetBrains Mono', monospace" }}>
               {row.id}
             </div>
           </div>
@@ -126,7 +127,7 @@ function ShipmentDetailPanel({ row, onClose }) {
             }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.color = '#f87171' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#475569' }}
-          >Ã—</button>
+          >×</button>
         </div>
 
         {/* Driver / Partner */}
@@ -178,7 +179,7 @@ function ShipmentDetailPanel({ row, onClose }) {
               border: `1px solid ${row.hasGps ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.18)'}`,
               color: row.hasGps ? '#34d399' : '#64748b',
             }}>
-              {row.hasGps ? 'ðŸ“¡ Live GPS' : 'ðŸ“µ No Signal'}
+              {row.hasGps ? '📡 Live GPS' : '📵 No Signal'}
             </span>
           </div>
         </div>
@@ -200,7 +201,7 @@ function ShipmentDetailPanel({ row, onClose }) {
               <LorryIcon style={{ width: 24, height: 24, color: row.isDelayed ? '#f87171' : '#38bdf8' }} />
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#e0f2fe', fontFamily: "inherit" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#e0f2fe', fontFamily: "'JetBrains Mono', monospace" }}>
                 {row.vehicleNumber}
               </div>
               <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 3 }}>
@@ -295,7 +296,7 @@ function ShipmentDetailPanel({ row, onClose }) {
               </div>
               <div className="sdp-kv">
                 <span className="sdp-kv-key">Signal</span>
-                <span className="sdp-kv-val live">â— Active</span>
+                <span className="sdp-kv-val live">● Active</span>
               </div>
             </div>
           </div>
@@ -335,7 +336,7 @@ function ShipmentDetailPanel({ row, onClose }) {
   )
 }
 
-// â”€â”€â”€ Main Shipments Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Shipments Component ─────────────────────────────────────────────────
 function Shipments({ shipments = {} }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('id')
@@ -364,7 +365,8 @@ function Shipments({ shipments = {} }) {
   return (
     <>
       <style>{`
-        .shipments-container { font-family: inherit; }
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+        .shipments-container { font-family: 'Sora', sans-serif; }
 
         .sdp-table-row {
           cursor: pointer;
@@ -432,7 +434,7 @@ function Shipments({ shipments = {} }) {
                       color: row.isDelayed ? '#f87171' : '#38bdf8',
                     }} />
                   </div>
-                  <span style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 600 }}>
                     {value}
                   </span>
                 </div>
@@ -507,10 +509,10 @@ function Shipments({ shipments = {} }) {
           <div style={{
             display: 'block',
             padding: '10px 14px', marginTop: 8,
-            fontSize: 11, color: '#334155',
+            fontSize: 11, color: '#4d6382',
             borderTop: '1px solid rgba(255,255,255,0.04)',
           }}>
-            Click any row to view full shipment & driver details
+            Click any row to view full shipment & driver detail
           </div>
         )}
       </section>
@@ -524,5 +526,3 @@ function Shipments({ shipments = {} }) {
 }
 
 export default Shipments
-
-
