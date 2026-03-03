@@ -43,6 +43,8 @@ const DEFAULT_PATH_BY_ROLE = {
   RetailShop: '/retail/dashboard',
 }
 
+const LOGOUT_FEEDBACK_FORM_URL = 'https://form.jotform.com/260479216275058'
+
 function getRoleView(role, pathname) {
   const normalizedPath = String(pathname || '').toLowerCase()
 
@@ -165,11 +167,36 @@ function App() {
     setCurrentPath(path)
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const activeUser = auth.user
+    const activeRole = auth.role
+    const redirectUrl =
+      typeof window === 'undefined'
+        ? LOGOUT_FEEDBACK_FORM_URL
+        : `${LOGOUT_FEEDBACK_FORM_URL}?redirect=${encodeURIComponent(`${window.location.origin}/`)}`
+
+    try {
+      await authApi.guestEntry({
+        name: activeUser?.name || 'Logout User',
+        email: activeUser?.email || 'guest@example.com',
+        company: activeUser?.company || 'Logout Feedback',
+        phone: activeUser?.phone || 'N/A',
+        role: ROLE_TO_API[activeRole] || 'dealer',
+        source: 'logout_form',
+      })
+    } catch (error) {
+      // Do not block logout if form persistence fails.
+      console.warn('Logout form persistence failed:', error)
+    }
+
     logout()
     setScreen('home')
     setEntryIntent('login')
     navigate('/')
+
+    if (typeof window !== 'undefined') {
+      window.open(redirectUrl, '_blank', 'noopener,noreferrer')
+    }
   }
 
   const openRoleSelection = (intent) => {
