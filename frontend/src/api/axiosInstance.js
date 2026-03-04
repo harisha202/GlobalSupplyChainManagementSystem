@@ -117,7 +117,13 @@ function looksLikeProxyConnectionFailure(rawText = '', contentType = '') {
     haystack.includes('connect econnrefused') ||
     haystack.includes('proxy error') ||
     haystack.includes('http proxy error') ||
+    haystack.includes('error occurred while trying to proxy') ||
+    haystack.includes('failed to proxy') ||
     haystack.includes('target machine actively refused') ||
+    haystack.includes('socket hang up') ||
+    haystack.includes('econnreset') ||
+    haystack.includes('enotfound') ||
+    haystack.includes('eai_again') ||
     haystack.includes('fetch failed')
   )
 }
