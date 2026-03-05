@@ -82,6 +82,18 @@ class GuestEntryRequest(BaseModel):
     source: str = Field(default="guest_form", min_length=3, max_length=40)
 
 
+class FeedbackRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    email: str = Field(min_length=3, max_length=120)
+    role: UserRole
+    category: str = Field(min_length=2, max_length=120)
+    priority: str = Field(min_length=2, max_length=20)
+    rating: int = Field(ge=1, le=5)
+    message: str = Field(min_length=3, max_length=1200)
+    improvements: str = Field(default="", max_length=1200)
+    source: str = Field(default="feedback_form", min_length=3, max_length=40)
+
+
 def normalize_email(email: str) -> str:
     return str(email).strip().lower()
 
@@ -428,6 +440,44 @@ def save_guest_entry(data: GuestEntryRequest) -> dict:
     return {
         "success": True,
         "message": "Guest form data stored",
+        "entry_id": entry["id"],
+        "created_at": entry["created_at"],
+    }
+
+
+@router.post("/feedback")
+def submit_feedback(data: FeedbackRequest) -> dict:
+    normalized_email = normalize_email(data.email)
+    clean_name = normalize_display_name(data.name, fallback="User")
+
+    try:
+        entry = create_guest_entry(
+            name=clean_name,
+            email=normalized_email,
+            company=data.category.strip(),
+            phone=f"{data.priority.strip()}-{data.rating}",
+            role=data.role.value,
+            source=data.source.strip(),
+        )
+    except DatabaseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database temporarily unavailable",
+        ) from exc
+
+    email_sent = email_service.send_feedback_thank_you_email(
+        to_email=normalized_email,
+        name=clean_name,
+    )
+    if not email_sent:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Feedback stored but failed to send thank-you email.",
+        )
+
+    return {
+        "success": True,
+        "message": "Feedback submitted successfully",
         "entry_id": entry["id"],
         "created_at": entry["created_at"],
     }

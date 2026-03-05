@@ -890,6 +890,7 @@ export const authApi = {
   login: (payload) => http.post('/auth/login', payload),
   signup: (payload) => http.post('/auth/signup', payload),
   guestEntry: (payload) => http.post('/auth/guest-entry', payload),
+  submitFeedback: (payload) => http.post('/auth/feedback', payload),
 }
 
 export const adminApi = {

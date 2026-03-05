@@ -13,6 +13,7 @@ import Login from './pages/Auth/Login'
 import Signup from './pages/Auth/Signup'
 import GuestForm from './pages/Auth/GuestForm'
 import RoleSelection from './pages/Auth/RoleSelection'
+import FeedbackForm from './pages/Feedback/Feedbackform'
 
 const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'))
 const AdminAnalytics = lazy(() => import('./pages/Admin/Analytics'))
@@ -42,8 +43,6 @@ const DEFAULT_PATH_BY_ROLE = {
   Dealer: '/dealer/dashboard',
   RetailShop: '/retail/dashboard',
 }
-
-const LOGOUT_FEEDBACK_FORM_URL = 'https://form.jotform.com/260479216275058'
 
 function getRoleView(role, pathname) {
   const normalizedPath = String(pathname || '').toLowerCase()
@@ -143,6 +142,7 @@ function App() {
   const [screen, setScreen] = useState('home')
   const [pendingRole, setPendingRole] = useState('Admin')
   const [entryIntent, setEntryIntent] = useState('login')
+  const [logoutFeedbackPrefill, setLogoutFeedbackPrefill] = useState(null)
   const [currentPath, setCurrentPath] = useState(() =>
     typeof window === 'undefined' ? '/' : window.location.pathname,
   )
@@ -167,36 +167,21 @@ function App() {
     setCurrentPath(path)
   }
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     const activeUser = auth.user
     const activeRole = auth.role
-    const redirectUrl =
-      typeof window === 'undefined'
-        ? LOGOUT_FEEDBACK_FORM_URL
-        : `${LOGOUT_FEEDBACK_FORM_URL}?redirect=${encodeURIComponent(`${window.location.origin}/`)}`
 
-    try {
-      await authApi.guestEntry({
-        name: activeUser?.name || 'Logout User',
-        email: activeUser?.email || 'guest@example.com',
-        company: activeUser?.company || 'Logout Feedback',
-        phone: activeUser?.phone || 'N/A',
-        role: ROLE_TO_API[activeRole] || 'dealer',
-        source: 'logout_form',
-      })
-    } catch (error) {
-      // Do not block logout if form persistence fails.
-      console.warn('Logout form persistence failed:', error)
-    }
+    setLogoutFeedbackPrefill({
+      name: activeUser?.name || '',
+      email: activeUser?.email || '',
+      role: activeRole === 'RetailShop' ? 'Retail Shop' : activeRole || '',
+      source: 'logout_form',
+    })
 
     logout()
-    setScreen('home')
+    setScreen('feedback')
     setEntryIntent('login')
-    navigate('/')
-
-    if (typeof window !== 'undefined') {
-      window.open(redirectUrl, '_blank', 'noopener,noreferrer')
-    }
+    navigate('/feedback')
   }
 
   const openRoleSelection = (intent) => {
@@ -214,6 +199,19 @@ function App() {
   const dashboardFallback = (
     <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>Loading dashboard...</main>
   )
+
+  if (screen === 'feedback') {
+    return (
+      <FeedbackForm
+        initialData={logoutFeedbackPrefill}
+        onSubmitted={() => {
+          setLogoutFeedbackPrefill(null)
+          setScreen('home')
+          navigate('/')
+        }}
+      />
+    )
+  }
 
   if (auth.isGuest && Dashboard) {
     return (

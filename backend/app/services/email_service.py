@@ -125,6 +125,33 @@ class EmailService:
         """
         return self.send_email(to_email, subject, html_content, text_content)
 
+    def send_feedback_thank_you_email(self, to_email: str, name: str) -> bool:
+        subject = "Thanks for your feedback - Global Supply Chain"
+        text_content = (
+            f"Hi {name},\n\n"
+            "Thank you for sharing your feedback with Global Supply Chain.\n"
+            "Your response has been received and our team will use it to improve the platform.\n\n"
+            "Regards,\nGlobal Supply Chain Team"
+        )
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: Arial, sans-serif; background: #f3f4f6; margin: 0; padding: 24px;">
+            <div style="max-width: 560px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; border: 1px solid #e5e7eb;">
+              <h2 style="margin-top: 0; color: #111827;">Feedback received</h2>
+              <p style="color: #374151;">Hi <strong>{name}</strong>,</p>
+              <p style="color: #374151;">
+                Thank you for sharing your feedback with Global Supply Chain.
+              </p>
+              <p style="color: #374151; margin-bottom: 0;">
+                We have recorded your response and will use it to improve the platform.
+              </p>
+            </div>
+          </body>
+        </html>
+        """
+        return self.send_email(to_email, subject, html_content, text_content)
+
 
 class MockEmailService(EmailService):
     """Development email service that prints instead of sending."""
