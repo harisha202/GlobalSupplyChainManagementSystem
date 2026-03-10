@@ -207,18 +207,26 @@ def _build_otp_response(data: SendOTPRequest) -> dict:
     )
 
     if not email_sent:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send OTP email. Check SMTP configuration and sender credentials.",
-        )
+        settings = get_settings()
+        if settings.app_env.lower() != "development":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send OTP email. Check SMTP configuration and sender credentials.",
+            )
+        logger.warning("OTP email delivery failed for %s; returning OTP in development response.", email)
 
     payload: dict[str, object] = {
         "success": True,
         "message": f"OTP sent to {email}",
+        "email_sent": bool(email_sent),
     }
 
     if get_settings().app_env.lower() == "development":
         payload["otp"] = otp
+        if not email_sent:
+            payload["email_error"] = (
+                "Email delivery failed. Verify SMTP credentials or enable MOCK_EMAIL_DELIVERY=false with valid SMTP."
+            )
 
     return payload
 

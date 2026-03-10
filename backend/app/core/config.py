@@ -31,9 +31,10 @@ class ConfigurationError(RuntimeError):
 
 
 _ENV_LOADED = False
+_ENV_FILE_KEYS: set[str] = set()
 
 
-def _load_env_file(path: Path) -> None:
+def _load_env_file(path: Path, *, override_file_keys: bool = False) -> None:
     if not path.exists() or not path.is_file():
         return
 
@@ -56,8 +57,16 @@ def _load_env_file(path: Path) -> None:
         if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
             value = value[1:-1]
 
-        # Keep explicit shell env vars higher priority than .env files.
-        os.environ.setdefault(key, value)
+        # Keep explicit shell env vars higher priority than .env files, but allow a later
+        # .env file (backend/.env) to override values that came from an earlier .env file.
+        if key not in os.environ:
+            os.environ[key] = value
+            _ENV_FILE_KEYS.add(key)
+            continue
+
+        if override_file_keys and key in _ENV_FILE_KEYS:
+            os.environ[key] = value
+            _ENV_FILE_KEYS.add(key)
 
 
 def _load_env_files_once() -> None:
@@ -69,8 +78,9 @@ def _load_env_files_once() -> None:
     project_root = backend_root.parent
 
     # Load root .env first, then backend/.env to allow backend-specific overrides.
-    _load_env_file(project_root / ".env")
-    _load_env_file(backend_root / ".env")
+    # Explicit shell env vars remain highest priority.
+    _load_env_file(project_root / ".env", override_file_keys=False)
+    _load_env_file(backend_root / ".env", override_file_keys=True)
     _ENV_LOADED = True
 
 
@@ -110,7 +120,14 @@ def validate_settings(settings: Settings) -> None:
 def get_settings() -> Settings:
     _load_env_files_once()
     app_env = os.getenv("APP_ENV", "development")
-    default_mock_email = "true" if app_env.lower() == "development" else "false"
+    mock_env = os.getenv("MOCK_EMAIL_DELIVERY")
+    sender_password_present = bool(os.getenv("SENDER_PASSWORD", "").strip())
+    # If MOCK_EMAIL_DELIVERY isn't explicitly set, default to mock mode in development
+    # unless SMTP credentials are present (then prefer real email).
+    if mock_env is None:
+        default_mock_email = "false" if sender_password_present else ("true" if app_env.lower() == "development" else "false")
+    else:
+        default_mock_email = mock_env
 
     return Settings(
         app_name=os.getenv("APP_NAME", "Global Supply Chain API"),

@@ -132,7 +132,7 @@ Frontend uses Vite proxy to call backend (`/api` and `/ws` -> `http://localhost:
 - `GEMINI_API_KEY` (for Gemini-powered AI integrations; leave blank to keep the baseline forecasts and summaries)
 
 Providing the `GEMINI_API_KEY` enables the backend AI helpers to call Gemini; when the key is missing they gracefully return the mean-based baselines defined in `app/services/ai_service.py`.
-- `MOCK_EMAIL_DELIVERY` (default: `true` in development). When false, thank-you emails still try to go through SMTP; failures are now logged and the `/api/auth/feedback` response will include `email_sent: false` plus `email_error` instead of failing the request.
+- `MOCK_EMAIL_DELIVERY` (default: `true` in development unless `SENDER_PASSWORD` is set). When false, thank-you emails and OTP emails send via SMTP; failures are logged and `/api/auth/feedback` returns `email_sent: false` + `email_error` instead of failing the request.
 - `SMTP_SERVER`, `SMTP_PORT`, `SENDER_EMAIL`, `SENDER_PASSWORD`, `SENDER_NAME`
 
 To validate SMTP quickly (from your machine), use:
@@ -155,6 +155,7 @@ python scripts/smtp_check.py --to you@example.com
 - `.env` is ignored by git (`.gitignore` includes `.env` and `.env.*`).
 - Use `.env.example` files for safe placeholders only.
 - The repository includes a default `.env` that points `DATABASE_URL` at `sqlite:///./local.db` and keeps `GEMINI_API_KEY` blank; replace those values in your shell or local `backend/.env` copy so real secrets never land in source control.
+- The backend loads both `./.env` and `backend/.env`; if the same key appears in both files, `backend/.env` wins (shell environment variables still win over both).
 
 ### Render PostgreSQL Setup
 

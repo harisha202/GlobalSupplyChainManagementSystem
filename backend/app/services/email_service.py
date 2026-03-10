@@ -58,8 +58,18 @@ class EmailService:
                 server.sendmail(self.sender_email, [parsed_recipient], message.as_string())
 
             return True
+        except smtplib.SMTPAuthenticationError as exc:  # pragma: no cover - operational logging path
+            print(f"Email send failed to {to_email}: SMTP authentication failed.")
+            print("Tip: For Gmail, enable 2-Step Verification and use an App Password (16 characters).")
+            print(f"Details: {exc}")
+            return False
+        except smtplib.SMTPServerDisconnected as exc:  # pragma: no cover - operational logging path
+            print(f"Email send failed to {to_email}: SMTP server disconnected unexpectedly.")
+            print("Tip: Verify SMTP_SERVER/SMTP_PORT and check that your network/firewall allows SMTP.")
+            print(f"Details: {exc}")
+            return False
         except Exception as exc:  # pragma: no cover - operational logging path
-            print(f"Email send failed to {to_email}: {exc}")
+            print(f"Email send failed to {to_email}: {exc.__class__.__name__}: {exc}")
             return False
 
     def send_otp_email(self, to_email: str, name: str, otp: str, validity_minutes: int = 10) -> bool:
