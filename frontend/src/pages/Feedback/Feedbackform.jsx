@@ -36,6 +36,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /* ── Component ─────────────────────────────────────────────────── */
 export default function FeedbackForm({ initialData = null, onSubmitted }) {
+  const badgeLogoSrc = `${import.meta.env.BASE_URL}favicon.svg`
   const [step, setStep]       = useState(1)
   const [done, setDone]       = useState(false)
   const [loading, setLoading] = useState(false)
@@ -190,6 +191,16 @@ export default function FeedbackForm({ initialData = null, onSubmitted }) {
         <div className="fb-header">
           <div className="fb-badge">
             <span className="fb-badge-dot" />
+            <img
+              className="fb-badge-logo"
+              src={badgeLogoSrc}
+              alt=""
+              aria-hidden="true"
+              width="22"
+              height="22"
+              loading="eager"
+              title="Global Supply Chain"
+            />
             Global Supply Chain · Feedback Portal
           </div>
           <h1 className="fb-title">
