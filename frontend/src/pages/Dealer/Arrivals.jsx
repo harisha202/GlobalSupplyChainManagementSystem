@@ -138,6 +138,22 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? '--' : date.toLocaleDateString()
 }
 
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.max(0, Math.round(milliseconds / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  const parts = []
+  if (hours) {
+    parts.push(`${hours}h`)
+  }
+  if (minutes || hours) {
+    parts.push(`${minutes}m`)
+  }
+  parts.push(`${seconds}s`)
+  return parts.join(' ')
+}
+
 function Arrivals({ user, onLogout, onNavigate, currentPath }) {
   const [shipments, setShipments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -146,6 +162,7 @@ function Arrivals({ user, onLogout, onNavigate, currentPath }) {
   const [selectedShipment, setSelectedShipment] = useState(null)
   const [isSocketConnected, setIsSocketConnected] = useState(false)
   const [lastSocketUpdate, setLastSocketUpdate] = useState('')
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     let mounted = true
@@ -203,6 +220,11 @@ function Arrivals({ user, onLogout, onNavigate, currentPath }) {
     }
   }, [shipments, selectedShipment])
 
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
   const shipmentStatusData = useMemo(() => [
     { label: 'In Transit', value: shipments.filter((s) => s.status === 'In Transit').length, color: '#3b82f6' },
     { label: 'Arriving Today', value: shipments.filter((s) => s.status === 'Arriving Today').length, color: '#22c55e' },
@@ -227,6 +249,24 @@ function Arrivals({ user, onLogout, onNavigate, currentPath }) {
       return matchesStatus && matchesSearch
     })
   }, [shipments, filterStatus, searchTerm])
+
+  const selectedEtaCountdown = useMemo(() => {
+    if (!selectedShipment || !selectedShipment.estimatedArrival) {
+      return null
+    }
+    const target = new Date(selectedShipment.estimatedArrival).getTime()
+    if (!Number.isFinite(target)) {
+      return null
+    }
+    const diff = target - now
+    const label = diff >= 0 ? 'Live ETA countdown' : 'Arrival noted'
+    const suffix = diff >= 0 ? 'remaining' : 'ago'
+    return {
+      label,
+      formatted: formatDuration(Math.abs(diff)),
+      suffix,
+    }
+  }, [selectedShipment, now])
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -517,6 +557,23 @@ function Arrivals({ user, onLogout, onNavigate, currentPath }) {
                   {selectedShipment.blockchainVerified ? 'Verified on Blockchain' : 'Not Verified'}
                 </span>
               </div>
+
+              {selectedEtaCountdown && (
+                <div
+                  style={{
+                    padding: 12,
+                    background: '#fef9c3',
+                    borderRadius: 10,
+                    border: '1px solid #fde68a',
+                    marginBottom: 12,
+                  }}
+                >
+                  <p style={{ margin: 0, color: '#b45309', fontWeight: 600 }}>{selectedEtaCountdown.label}</p>
+                  <p style={{ margin: '4px 0 0 0', color: '#92400e', fontSize: 14 }}>
+                    {selectedEtaCountdown.formatted} {selectedEtaCountdown.suffix}
+                  </p>
+                </div>
+              )}
 
               <div
                 style={{

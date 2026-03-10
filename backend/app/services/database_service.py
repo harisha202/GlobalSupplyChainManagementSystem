@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -38,6 +39,9 @@ class DatabaseConflictError(DatabaseError):
 
 
 metadata = MetaData()
+logger = logging.getLogger("global_supply_chain_db")
+
+_ACTIVE_DATABASE_URL: str | None = None
 
 users_table = Table(
     "users",
@@ -201,10 +205,10 @@ def _db_path() -> Path:
     return (backend_root / configured).resolve()
 
 
-def _normalize_database_url() -> str:
+def _normalize_database_url(*, prefer_sqlite: bool = False) -> str:
     settings = get_settings()
     raw = str(settings.database_url or "").strip()
-    if raw:
+    if not prefer_sqlite and raw:
         if raw.startswith("postgres://"):
             return raw.replace("postgres://", "postgresql+psycopg2://", 1)
         if raw.startswith("postgresql://") and "+" not in raw.split("://", 1)[0]:
@@ -216,16 +220,39 @@ def _normalize_database_url() -> str:
     return f"sqlite:///{path.as_posix()}"
 
 
+def _current_database_url() -> str:
+    return _ACTIVE_DATABASE_URL or _normalize_database_url()
+
+
 @lru_cache
 def _engine() -> Engine:
+    global _ACTIVE_DATABASE_URL
+    primary_url = _normalize_database_url()
     try:
-        return create_engine(
-            _normalize_database_url(),
+        primary_engine = create_engine(
+            primary_url,
             future=True,
             pool_pre_ping=True,
         )
-    except SQLAlchemyError as exc:
-        raise DatabaseError("Unable to initialize database engine") from exc
+        with primary_engine.connect():
+            pass
+        _ACTIVE_DATABASE_URL = primary_url
+        return primary_engine
+    except SQLAlchemyError as primary_exc:
+        logger.warning("Primary database %s failed, falling back to SQLite: %s", primary_url, primary_exc)
+        fallback_url = _normalize_database_url(prefer_sqlite=True)
+        try:
+            fallback_engine = create_engine(
+                fallback_url,
+                future=True,
+                pool_pre_ping=True,
+            )
+            with fallback_engine.connect():
+                pass
+            _ACTIVE_DATABASE_URL = fallback_url
+            return fallback_engine
+        except SQLAlchemyError as fallback_exc:
+            raise DatabaseError("Unable to initialize database engine") from fallback_exc
 
 
 def _row_to_dict(row: Any) -> dict:
@@ -474,7 +501,7 @@ def check_database_connection() -> dict:
     try:
         with _engine().connect() as conn:
             conn.execute(select(1)).scalar()
-            db_url = _normalize_database_url()
+            db_url = _current_database_url()
             return {"ok": True, "path": str(_db_path()) if db_url.startswith("sqlite") else db_url}
     except SQLAlchemyError as exc:
         raise DatabaseError("Database connectivity check failed") from exc

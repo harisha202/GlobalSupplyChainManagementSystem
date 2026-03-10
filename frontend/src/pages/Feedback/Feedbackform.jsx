@@ -58,6 +58,11 @@ export default function FeedbackForm({ initialData = null, onSubmitted }) {
   const [message, setMessage]           = useState('')
   const [improvements, setImprovements] = useState('')
   const [err3, setErr3]                 = useState('')
+  const [feedbackResponse, setFeedbackResponse] = useState({
+    message: '',
+    email_sent: true,
+    email_error: '',
+  })
 
   useEffect(() => {
     if (!initialData) return
@@ -126,7 +131,7 @@ export default function FeedbackForm({ initialData = null, onSubmitted }) {
     setLoading(true)
     setErr3('')
     try {
-      await authApi.submitFeedback({
+      const resp = await authApi.submitFeedback({
         name:         name.trim(),
         email:        email.trim(),
         role:         ROLE_TO_API[role] || 'dealer',
@@ -138,6 +143,11 @@ export default function FeedbackForm({ initialData = null, onSubmitted }) {
         source:       initialData?.source || 'feedback_form',
       })
       setDone(true)
+      setFeedbackResponse({
+        message: resp?.message || 'Feedback submitted successfully',
+        email_sent: resp?.email_sent ?? true,
+        email_error: resp?.email_error || '',
+      })
       if (typeof onSubmitted === 'function') {
         setTimeout(() => onSubmitted(), 1000)
       }
@@ -154,6 +164,11 @@ export default function FeedbackForm({ initialData = null, onSubmitted }) {
     setName(''); setEmail(''); setEmailConf(''); setRole(''); setErr1('')
     setCategory(''); setPriority(''); setRating(0); setFile(null); setErr2('')
     setMessage(''); setImprovements(''); setErr3('')
+    setFeedbackResponse({
+      message: '',
+      email_sent: true,
+      email_error: '',
+    })
   }
 
   /* ── Char counter class ──────────────────────────────────────── */
@@ -237,9 +252,17 @@ export default function FeedbackForm({ initialData = null, onSubmitted }) {
               <div className="fb-success-icon">✦</div>
               <div className="fb-success-title">Feedback Received</div>
               <p className="fb-success-msg">
-                Thank you, {name.trim().split(' ')[0] || 'User'}. Your response has been logged
-                and will help us improve the supply chain platform.
+                {feedbackResponse.message ||
+                  `Thank you, ${name.trim().split(' ')[0] || 'User'}. Your response has been logged.`}
               </p>
+              {!feedbackResponse.email_sent && (
+                <p className="fb-success-note">
+                  Thank-you email could not be delivered.
+                  <br />
+                  {feedbackResponse.email_error ||
+                    'Check SMTP credentials or enable MOCK_EMAIL_DELIVERY.'}
+                </p>
+              )}
               <span className="fb-success-tag">✓ Submitted Successfully</span>
               <button type="button" className="fb-btn-reset" onClick={resetForm} style={{ marginTop: 8 }}>
                 ↩ Submit Another Response

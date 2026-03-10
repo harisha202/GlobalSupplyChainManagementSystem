@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -34,6 +35,8 @@ from fastapi import Request
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
+
+logger = logging.getLogger(__name__)
 
 otp_service = OTPService()
 email_service = get_email_service()
@@ -179,11 +182,7 @@ def create_refresh_token(subject: str, role: UserRole) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
-@router.post("/send-otp")
-@limiter.limit(lambda: os.getenv("RATE_LIMIT_AUTH", "5/minute"))
-def send_otp(request: Request, data: SendOTPRequest = Depends()) -> dict:
-    # We must read body manually or depend on it correctly for slowapi
-    ...
+def _build_otp_response(data: SendOTPRequest) -> dict:
     email = normalize_email(data.email)
     try:
         existing_user = get_user_by_email(email)
@@ -224,6 +223,17 @@ def send_otp(request: Request, data: SendOTPRequest = Depends()) -> dict:
     return payload
 
 
+async def _collect_otp_request(request: Request) -> SendOTPRequest:
+    body = await request.json()
+    return SendOTPRequest(**body)
+
+
+@router.post("/send-otp")
+@limiter.limit(lambda: os.getenv("RATE_LIMIT_AUTH", "5/minute"))
+async def send_otp(request: Request, data: SendOTPRequest = Depends(_collect_otp_request)) -> dict:
+    return _build_otp_response(data)
+
+
 @router.post("/verify-otp")
 def verify_otp(data: VerifyOTPRequest) -> dict:
     email = normalize_email(data.email)
@@ -237,9 +247,8 @@ def verify_otp(data: VerifyOTPRequest) -> dict:
 
 @router.post("/resend-otp")
 @limiter.limit(lambda: os.getenv("RATE_LIMIT_AUTH", "5/minute"))
-def resend_otp(request: Request, data: SendOTPRequest = Depends()) -> dict:
-    return send_otp(request, data)
-    return send_otp(request, data)
+async def resend_otp(request: Request, data: SendOTPRequest = Depends(_collect_otp_request)) -> dict:
+    return _build_otp_response(data)
 
 
 @router.post("/signup", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
@@ -311,9 +320,15 @@ def signup(data: SignupRequest) -> LoginResponse:
     )
 
 
+async def _collect_login_request(request: Request) -> LoginRequest:
+    body = await request.json()
+    return LoginRequest(**body)
+
+
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit(lambda: os.getenv("RATE_LIMIT_AUTH", "5/minute"))
-def login(request: Request, data: LoginRequest = Depends()) -> LoginResponse:
+async def login(request: Request) -> LoginResponse:
+    data = await _collect_login_request(request)
     email = normalize_email(data.email)
     try:
         db_user = get_user_by_email(email)
@@ -538,15 +553,26 @@ def submit_feedback(data: FeedbackRequest) -> dict:
         to_email=normalized_email,
         name=clean_name,
     )
-    if not email_sent:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Feedback stored but failed to send thank-you email.",
-        )
 
-    return {
+    response = {
         "success": True,
-        "message": "Feedback submitted successfully",
         "entry_id": entry["id"],
         "created_at": entry["created_at"],
     }
+
+    if not email_sent:
+        logger.warning(
+            "Feedback thank-you email failed for %s (name: %s)",
+            normalized_email,
+            clean_name,
+        )
+        response["message"] = "Feedback submitted; thank-you email could not be delivered."
+        response["email_sent"] = False
+        response["email_error"] = (
+            "Email delivery failed. Verify SMTP credentials or enable MOCK_EMAIL_DELIVERY."
+        )
+        return response
+
+    response["message"] = "Feedback submitted successfully"
+    response["email_sent"] = True
+    return response

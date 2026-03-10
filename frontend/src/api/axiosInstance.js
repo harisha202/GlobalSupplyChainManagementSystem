@@ -887,7 +887,13 @@ function withFallback(action, fallback, shouldFallback) {
 export const authApi = {
   post: http.post,
   get: http.get,
-  login: (payload) => http.post('/auth/login', payload),
+  login: (payload) =>
+    http.post('/auth/login', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+    }),
   signup: (payload) => http.post('/auth/signup', payload),
   guestEntry: (payload) => http.post('/auth/guest-entry', payload),
   submitFeedback: (payload) => http.post('/auth/feedback', payload),
@@ -1074,6 +1080,7 @@ export const dealerApi = {
 export const blockchainApi = {
   journey: (productSku) => http.get(`/blockchain/journey/${encodeURIComponent(productSku)}`),
   qr: (productSku) => http.get(`/blockchain/qr/${encodeURIComponent(productSku)}`),
+  journeySummary: (productSku) => http.get(`/blockchain/journey-summary/${encodeURIComponent(productSku)}`),
   verify: (payload) => http.post('/blockchain/verify', payload),
 }
 

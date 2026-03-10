@@ -914,6 +914,18 @@
   font-family: var(--font-sub);
 }
 
+.fb-success-note {
+  margin: 0 auto;
+  max-width: 36ch;
+  color: #f97316;
+  font-size: 14px;
+  line-height: 1.4;
+  border: 1px dashed rgba(249,115,22,0.4);
+  border-radius: 999px;
+  padding: 12px 16px;
+  background: rgba(249,115,22,0.08);
+}
+
 .fb-success-tag {
   display: inline-flex;
   align-items: center;

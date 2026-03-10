@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { blockchainApi } from '../../api/axiosInstance'
 import BlockchainBadge from '../../components/blockchain/BlockchainBadge'
 
@@ -37,10 +37,46 @@ function normalizeScannerProducts(products = []) {
   })
 }
 
+function formatStageName(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return 'Unknown stage'
+  }
+  const cleaned = raw.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+}
+
+function formatTimestamp(value) {
+  if (!value) {
+    return 'Timestamp unavailable'
+  }
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value)
+  }
+  return parsed.toLocaleString(undefined, {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
+}
+
+function formatCountdownLabel(milliseconds) {
+  if (milliseconds <= 0) {
+    return 'Arrived • finalizing confirmation'
+  }
+  const totalSeconds = Math.floor(milliseconds / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
+}
+
 function Scanner({ products = [] }) {
   const [scannedCode, setScannedCode] = useState('')
   const [scanResult, setScanResult] = useState(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [etaTargetTime, setEtaTargetTime] = useState(null)
+  const [etaLabel, setEtaLabel] = useState('Awaiting journey data for ETA countdown')
 
   const productCatalog = normalizeScannerProducts(products)
   const productByCode = Object.fromEntries(
@@ -53,6 +89,54 @@ function Scanner({ products = [] }) {
     new Set(productCatalog.flatMap((item) => [item.code, ...(item.aliases || [])])),
   ).slice(0, 4)
 
+  const timelineSteps = useMemo(() => {
+    const journey = Array.isArray(scanResult?.journey) ? scanResult.journey : []
+    return journey.map((step, index) => {
+      const rawEta = step.etaHours ?? step.payload?.etaHours
+      const etaNumeric = Number(rawEta)
+      return {
+        id: `${step.txHash || step.eventStage || index}-${index}`,
+        stage: formatStageName(step.eventStage || step.eventStatus || step.payload?.stage),
+        timestamp: step.timestamp,
+        meta: step.eventStatus || step.payload?.status,
+        etaHours: Number.isFinite(etaNumeric) ? etaNumeric : null,
+        txHash: step.txHash,
+      }
+    })
+  }, [scanResult?.journey])
+
+  const activeStageLabel =
+    timelineSteps.length > 0 ? timelineSteps[timelineSteps.length - 1].stage : 'Waiting for blockchain sync'
+
+  useEffect(() => {
+    const candidate = [...timelineSteps].reverse().find((step) => step.etaHours !== null && step.etaHours >= 0)
+    if (candidate && typeof candidate.etaHours === 'number') {
+      setEtaTargetTime(Date.now() + candidate.etaHours * 3600 * 1000)
+    } else {
+      setEtaTargetTime(null)
+    }
+  }, [timelineSteps])
+
+  useEffect(() => {
+    if (!etaTargetTime) {
+      setEtaLabel('Awaiting journey data for ETA countdown')
+      return
+    }
+
+    const update = () => {
+      const remaining = Math.max(etaTargetTime - Date.now(), 0)
+      if (remaining <= 0) {
+        setEtaLabel('Arrived • finalizing confirmation')
+        return
+      }
+      setEtaLabel(`${formatCountdownLabel(remaining)} until arrival`)
+    }
+
+    update()
+    const timer = setInterval(update, 1000)
+    return () => clearInterval(timer)
+  }, [etaTargetTime])
+
   const handleScan = (code) => {
     const normalizedCode = normalizeScanCode(code)
     setIsScanning(true)
@@ -62,17 +146,29 @@ function Scanner({ products = [] }) {
     setTimeout(() => {
       const result = productByCode[normalizedCode]
       if (result) {
-        setScanResult({ ...result, loadingBlockchain: true, qrImageUrl: '', journey: [] })
+        setScanResult({
+          ...result,
+          loadingBlockchain: true,
+          qrImageUrl: '',
+          journey: [],
+          aiSummary: '',
+          aiHighlight: '',
+          aiStage: '',
+        })
         Promise.all([
           blockchainApi.qr(result.sku || normalizedCode),
           blockchainApi.journey(result.sku || normalizedCode),
+          blockchainApi.journeySummary(result.sku || normalizedCode),
         ])
-          .then(([qrPayload, journeyPayload]) => {
+          .then(([qrPayload, journeyPayload, summaryPayload]) => {
             setScanResult((prev) => ({
               ...(prev || result),
               loadingBlockchain: false,
               qrImageUrl: qrPayload?.qrImageUrl || '',
               journey: Array.isArray(journeyPayload?.journey) ? journeyPayload.journey : [],
+              aiSummary: summaryPayload?.summary?.summary || '',
+              aiHighlight: summaryPayload?.summary?.highlight || '',
+              aiStage: summaryPayload?.summary?.keyStage || '',
             }))
           })
           .catch(() => {
@@ -109,8 +205,9 @@ function Scanner({ products = [] }) {
           <div className="scanner-viewfinder">
             {isScanning ? (
               <div className="scanning-animation">
+                <div className="scanner-radar" aria-hidden="true"></div>
                 <div className="scan-line"></div>
-                <p>Scanning...</p>
+                <p aria-live="polite">Scanning...</p>
               </div>
             ) : (
               <div className="scanner-placeholder">
@@ -232,29 +329,57 @@ function Scanner({ products = [] }) {
                 </div>
               )}
 
-              {!scanResult.loadingBlockchain && Array.isArray(scanResult.journey) && scanResult.journey.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <p style={{ margin: '0 0 8px 0', fontSize: 13, fontWeight: 600 }}>Journey Trail</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {scanResult.journey.map((step) => (
-                      <div
-                        key={`${step.eventStage}-${step.timestamp}`}
-                        style={{
-                          padding: 10,
-                          border: '1px solid #dbeafe',
-                          borderRadius: 8,
-                          background: '#eff6ff',
-                        }}
-                      >
-                        <p style={{ margin: 0, fontWeight: 600, color: '#1e3a8a' }}>
-                          {String(step.eventStage || '').replace(/_/g, ' ')}
-                        </p>
-                        <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#334155' }}>
-                          tx: {String(step.txHash || '').slice(0, 18)}...
-                        </p>
+              {!scanResult.loadingBlockchain && (
+                <div className="journey-visuals">
+                  {timelineSteps.length > 0 && (
+                    <div className="timeline-panel">
+                      <div className="timeline-headline">
+                        <p>Product journey timeline ({timelineSteps.length} hops)</p>
+                        <span>Live QR trace</span>
                       </div>
-                    ))}
+                      <div className="timeline-body">
+                        {timelineSteps.map((step, index) => (
+                          <div className="timeline-step" key={step.id}>
+                            <div className="timeline-node">
+                              <span className="timeline-circle" />
+                              {index < timelineSteps.length - 1 && <span className="timeline-line" aria-hidden="true"></span>}
+                            </div>
+                            <div className="timeline-content">
+                              <p className="timeline-stage">{step.stage}</p>
+                              <p className="timeline-meta">
+                                {step.meta ? `${step.meta} • ` : ''}
+                                {formatTimestamp(step.timestamp)}
+                              </p>
+                              {step.txHash && (
+                                <p className="timeline-hash">Tx {step.txHash.slice(0, 10)}...</p>
+                              )}
+                              {step.etaHours !== null && (
+                                <p className="timeline-eta">ETA window: {step.etaHours.toFixed(1)}h</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="eta-panel">
+                    <p className="eta-label">Live ETA Countdown</p>
+                    <p className="eta-value">{etaLabel}</p>
+                    <p className="eta-stage">Tracking stage: {activeStageLabel}</p>
+                    <p className="eta-hint">Powered by blockchain telemetry + Gemini AI delay risk</p>
                   </div>
+                </div>
+              )}
+              {scanResult.aiSummary && (
+                <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: '#f8fafc', border: '1px dashed #cbd5f5' }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1d4ed8' }}>AI Journey Insight</p>
+                  <p style={{ margin: '4px 0 0 0', color: '#0f172a', fontSize: 14 }}>{scanResult.aiSummary}</p>
+                  {scanResult.aiHighlight && (
+                    <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: 12 }}>Highlight: {scanResult.aiHighlight}</p>
+                  )}
+                  {scanResult.aiStage && (
+                    <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: 12 }}>Stage cue: {scanResult.aiStage}</p>
+                  )}
                 </div>
               )}
             </div>

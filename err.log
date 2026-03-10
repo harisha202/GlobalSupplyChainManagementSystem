@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "run.py", line 16, in <module>
+    from app.api import admin, auth, blockchain, dealer, inventory, manufacturer, tracking
+  File "C:\Users\91797\OneDrive\Desktop\Global Supply  Chain project\backend\app\api\auth.py", line 225, in <module>
+    async def send_otp(data: SendOTPRequest = Depends()) -> dict:
+  File "C:\Users\91797\AppData\Roaming\Python\Python38\site-packages\slowapi\extension.py", line 713, in decorator
+    raise Exception(
+Exception: No "request" or "websocket" argument on function "<function send_otp at 0x00000210BA6CAB80>"

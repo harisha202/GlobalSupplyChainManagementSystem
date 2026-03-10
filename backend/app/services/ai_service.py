@@ -84,8 +84,36 @@ def _extract_json_payload(text: str) -> dict | list | None:
     return None
 
 
+def _call_gemini_payload(model_name: str, payload: dict, timeout: float, *, api_key: str | None = None) -> dict | list | None:
+    key = api_key or get_settings().gemini_api_key
+    if not key:
+        return None
+
+    endpoint = f"{_GEMINI_BASE_URL}/{model_name}:generateContent?{url_parse.urlencode({'key': key})}"
+    request = url_request.Request(
+        endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with url_request.urlopen(request, timeout=timeout) as response:
+            raw_body = response.read().decode("utf-8")
+    except (url_error.URLError, TimeoutError, OSError):
+        return None
+
+    try:
+        parsed_response = json.loads(raw_body)
+    except json.JSONDecodeError:
+        return None
+
+    text = _extract_candidate_text(parsed_response)
+    if not text:
+        return None
+    return _extract_json_payload(text)
+
+
 def _request_gemini_forecast(history: list[float], horizon: int, api_key: str) -> list[float]:
-    endpoint = f"{_GEMINI_BASE_URL}/{_GEMINI_MODEL}:generateContent?{url_parse.urlencode({'key': api_key})}"
     prompt = (
         "You are a demand forecasting assistant for supply chain operations.\n"
         f"Input daily unit sales history: {history[-60:]}\n"
@@ -102,31 +130,16 @@ def _request_gemini_forecast(history: list[float], horizon: int, api_key: str) -
         },
     }
 
-    request = url_request.Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with url_request.urlopen(request, timeout=_GEMINI_TIMEOUT_SECONDS) as response:
-            raw_body = response.read().decode("utf-8")
-    except (url_error.URLError, TimeoutError, OSError):
+    response = _call_gemini_payload(_GEMINI_MODEL, payload, _GEMINI_TIMEOUT_SECONDS, api_key=api_key)
+    if not response:
         return []
 
-    try:
-        parsed_response = json.loads(raw_body)
-    except json.JSONDecodeError:
-        return []
-
-    text = _extract_candidate_text(parsed_response)
-    extracted = _extract_json_payload(text)
-    if isinstance(extracted, dict):
-        raw_forecast = extracted.get("forecast")
+    if isinstance(response, dict):
+        raw_forecast = response.get("forecast")
         if isinstance(raw_forecast, list):
             return _coerce_forecast(raw_forecast, horizon)
-    if isinstance(extracted, list):
-        return _coerce_forecast(extracted, horizon)
+    if isinstance(response, list):
+        return _coerce_forecast(response, horizon)
     return []
 
 
@@ -159,7 +172,6 @@ def predict_low_stock(inventory_data: list[dict], api_key: str) -> list[dict]:
     if not api_key:
         return inventory_data
 
-    endpoint = f"{_GEMINI_BASE_URL}/{_GEMINI_MODEL}:generateContent?{url_parse.urlencode({'key': api_key})}"
     prompt = (
         "You are an AI supply chain analyst. "
         "Review this inventory data and predict which products will run low first. "
@@ -176,32 +188,68 @@ def predict_low_stock(inventory_data: list[dict], api_key: str) -> list[dict]:
         },
     }
 
-    request = url_request.Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with url_request.urlopen(request, timeout=5.0) as response:
-            raw_body = response.read().decode("utf-8")
-        parsed = json.loads(raw_body)
-        text = _extract_candidate_text(parsed)
-        extracted = _extract_json_payload(text)
-        if isinstance(extracted, dict) and "recommendations" in extracted:
-            ai_recs = extracted["recommendations"]
-            # Merge back with original
-            merged = []
-            for item in inventory_data:
-                sku = item.get("sku")
-                matching = next((r for r in ai_recs if r.get("sku") == sku), {})
-                merged.append({
-                    **item,
-                    "recommendation": matching.get("recommendation", item.get("recommendation")),
-                    "priority": matching.get("priority", item.get("priority"))
-                })
-            return merged
-    except Exception:
-        pass
+    response = _call_gemini_payload(_GEMINI_MODEL, payload, 5.0, api_key=api_key)
+    if isinstance(response, dict) and "recommendations" in response:
+        ai_recs = response["recommendations"]
+        merged = []
+        for item in inventory_data:
+            sku = item.get("sku")
+            matching = next((r for r in ai_recs if r.get("sku") == sku), {})
+            merged.append({
+                **item,
+                "recommendation": matching.get("recommendation", item.get("recommendation")),
+                "priority": matching.get("priority", item.get("priority")),
+            })
+        return merged
 
     return inventory_data
+
+
+def summarize_product_journey(journey: list[dict]) -> dict:
+    """Summarizes a blockchain journey via Gemini when available."""
+    if not journey:
+        return {
+            "summary": "Product journey data is still pending on the ledger.",
+            "highlight": "No events yet—scan again after the next scan-in.",
+            "keyStage": "pending",
+            "steps": 0,
+        }
+
+    events = []
+    recent = journey[-8:]
+    for step in recent:
+        stage = step.get("eventStage") or step.get("stage") or "unknown stage"
+        timestamp = step.get("timestamp") or step.get("createdAt") or "unknown time"
+        events.append(f"{stage} at {timestamp}")
+
+    prompt = (
+        "You are a supply chain analyst reporting to judges. "
+        f"Review these events: {events}. "
+        "Return JSON with keys 'summary' (a single sentence), 'highlight' (a short clause that hooks judges), "
+        "and 'keyStage' (a short name for the latest stage)."
+    )
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.3,
+            "response_mime_type": "application/json",
+        },
+    }
+
+    response = _call_gemini_payload(_GEMINI_MODEL, payload, 3.0)
+    if isinstance(response, dict):
+        return {
+            "summary": response.get("summary") or "Journey shows recent blockchain activity.",
+            "highlight": response.get("highlight") or events[-1],
+            "keyStage": response.get("keyStage") or events[-1],
+            "steps": len(journey),
+        }
+
+    first_event = journey[0]
+    last_event = journey[-1]
+    return {
+        "summary": f"Chain flows from {first_event.get('eventStage', 'start')} to {last_event.get('eventStage', 'current')} in {len(journey)} hops.",
+        "highlight": f"Latest stage: {last_event.get('eventStage', 'current')} at {last_event.get('timestamp', 'unknown time')}.",
+        "keyStage": last_event.get("eventStage") or "current",
+        "steps": len(journey),
+    }

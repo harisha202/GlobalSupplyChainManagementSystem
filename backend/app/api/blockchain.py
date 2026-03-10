@@ -20,6 +20,7 @@ from app.services.database_service import (
     get_ledger_record_by_tx_hash,
     get_product_journey,
 )
+from app.services.ai_service import summarize_product_journey
 
 router = APIRouter(prefix="/blockchain", tags=["blockchain"])
 
@@ -105,6 +106,17 @@ def product_journey(product_sku: str) -> dict:
     except DatabaseError as exc:
         raise HTTPException(status_code=503, detail="Database temporarily unavailable") from exc
     return {"productSku": product_sku, "journey": journey}
+
+
+@router.get("/journey-summary/{product_sku}", dependencies=[Depends(require_roles(UserRole.admin, UserRole.manufacturer, UserRole.dealer, UserRole.retail_shop))])
+def product_journey_summary(product_sku: str) -> dict:
+    try:
+        journey = get_product_journey(product_sku=product_sku)
+    except DatabaseError as exc:
+        raise HTTPException(status_code=503, detail="Database temporarily unavailable") from exc
+
+    summary = summarize_product_journey(journey)
+    return {"productSku": product_sku, "journey": journey, "summary": summary}
 
 
 @router.get("/qr/{product_sku}", dependencies=[Depends(require_roles(UserRole.admin, UserRole.manufacturer, UserRole.dealer, UserRole.retail_shop))])

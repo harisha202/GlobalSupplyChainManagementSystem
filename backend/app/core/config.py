@@ -123,7 +123,7 @@ def get_settings() -> Settings:
             "mysql+pymysql://root:password@localhost:3306/global_supply_chain",
         ),
         database_url=os.getenv("DATABASE_URL", "").strip(),
-        sqlite_db_path=os.getenv("SQLITE_DB_PATH", "data/app.db"),
+        sqlite_db_path=os.getenv("SQLITE_DB_PATH", "local.db"),
         blockchain_salt=os.getenv("BLOCKCHAIN_SALT", "global-supply-chain-salt"),
         gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
         smtp_server=os.getenv("SMTP_SERVER", "smtp.gmail.com"),
