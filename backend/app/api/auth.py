@@ -42,7 +42,9 @@ otp_service = OTPService()
 email_service = get_email_service()
 
 pwd_context = CryptContext(
-    schemes=["bcrypt", "pbkdf2_sha256"],
+    # Prefer PBKDF2 to avoid bcrypt's 72-byte password limit and Windows bcrypt backend quirks.
+    # Keep bcrypt available for verifying any existing bcrypt hashes.
+    schemes=["pbkdf2_sha256", "bcrypt"],
     deprecated="auto",
     pbkdf2_sha256__default_rounds=120000
 )
@@ -57,7 +59,7 @@ class LoginRequest(BaseModel):
 class SignupRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     email: str
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
     role: UserRole
 
 
@@ -144,10 +146,15 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain_password: str, stored_password: str) -> bool:
-    # Backward compatibility for plain text seeded users
-    if not stored_password.startswith(("$2b$", "pbkdf2_sha256$")):
+    # Backward compatibility for plain text seeded users.
+    # Passlib hashes always begin with "$" (e.g. "$2b$..." or "$pbkdf2-sha256$...").
+    if not str(stored_password or "").startswith("$"):
         return stored_password == plain_password
-    return pwd_context.verify(plain_password, stored_password)
+
+    try:
+        return pwd_context.verify(plain_password, stored_password)
+    except Exception:
+        return False
 
 
 def create_access_token(subject: str, role: UserRole) -> str:
@@ -206,14 +213,16 @@ def _build_otp_response(data: SendOTPRequest) -> dict:
         validity_minutes=OTPService.OTP_VALIDITY_MINUTES,
     )
 
-    if not email_sent:
-        settings = get_settings()
-        if settings.app_env.lower() != "development":
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send OTP email. Check SMTP configuration and sender credentials.",
-            )
-        logger.warning("OTP email delivery failed for %s; returning OTP in development response.", email)
+    expose_otp = os.getenv("EXPOSE_OTP_IN_RESPONSE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+    if not email_sent and not expose_otp:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "OTP delivery failed. Configure SMTP (SMTP_SERVER/SMTP_PORT/SENDER_EMAIL/SENDER_PASSWORD), "
+                "keep MOCK_EMAIL_DELIVERY=false, restart the backend, then try again."
+            ),
+        )
 
     payload: dict[str, object] = {
         "success": True,
@@ -221,12 +230,10 @@ def _build_otp_response(data: SendOTPRequest) -> dict:
         "email_sent": bool(email_sent),
     }
 
-    if get_settings().app_env.lower() == "development":
+    if expose_otp:
         payload["otp"] = otp
         if not email_sent:
-            payload["email_error"] = (
-                "Email delivery failed. Verify SMTP credentials or enable MOCK_EMAIL_DELIVERY=false with valid SMTP."
-            )
+            payload["email_error"] = "Email delivery failed; OTP was returned only because EXPOSE_OTP_IN_RESPONSE=true."
 
     return payload
 

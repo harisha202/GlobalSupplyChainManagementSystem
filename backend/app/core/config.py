@@ -17,7 +17,8 @@ class Settings:
     database_url: str
     sqlite_db_path: str
     blockchain_salt: str
-    gemini_api_key: str
+    anthropic_api_key: str
+    anthropic_model: str
     smtp_server: str
     smtp_port: int
     sender_email: str
@@ -121,13 +122,8 @@ def get_settings() -> Settings:
     _load_env_files_once()
     app_env = os.getenv("APP_ENV", "development")
     mock_env = os.getenv("MOCK_EMAIL_DELIVERY")
-    sender_password_present = bool(os.getenv("SENDER_PASSWORD", "").strip())
-    # If MOCK_EMAIL_DELIVERY isn't explicitly set, default to mock mode in development
-    # unless SMTP credentials are present (then prefer real email).
-    if mock_env is None:
-        default_mock_email = "false" if sender_password_present else ("true" if app_env.lower() == "development" else "false")
-    else:
-        default_mock_email = mock_env
+    # Default to real email unless MOCK_EMAIL_DELIVERY is explicitly enabled.
+    default_mock_email = "false" if mock_env is None else mock_env
 
     return Settings(
         app_name=os.getenv("APP_NAME", "Global Supply Chain API"),
@@ -142,11 +138,14 @@ def get_settings() -> Settings:
         database_url=os.getenv("DATABASE_URL", "").strip(),
         sqlite_db_path=os.getenv("SQLITE_DB_PATH", "local.db"),
         blockchain_salt=os.getenv("BLOCKCHAIN_SALT", "global-supply-chain-salt"),
-        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
+        anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-opus-4-6").strip(),
         smtp_server=os.getenv("SMTP_SERVER", "smtp.gmail.com"),
         smtp_port=_to_int("SMTP_PORT", "587"),
         sender_email=os.getenv("SENDER_EMAIL", "noreply@globalsupplychain.local"),
-        sender_password=os.getenv("SENDER_PASSWORD", ""),
+        # Gmail App Passwords are often copied with spaces (e.g. "xxxx xxxx xxxx xxxx").
+        # Strip whitespace so users can paste directly into .env.
+        sender_password=os.getenv("SENDER_PASSWORD", "").replace(" ", ""),
         sender_name=os.getenv("SENDER_NAME", "Global Supply Chain"),
         mock_email_delivery=_to_bool(os.getenv("MOCK_EMAIL_DELIVERY", default_mock_email)),
     )

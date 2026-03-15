@@ -338,7 +338,7 @@ def arrivals() -> dict:
 def ai_reorder_recommendations(days: int = Query(30, ge=7, le=120)) -> dict:
     try:
         items = reorder_recommendations(days=days)
-        api_key = get_settings().gemini_api_key
+        api_key = get_settings().anthropic_api_key
         if api_key:
             items = predict_low_stock(items, api_key)
     except DatabaseError as exc:

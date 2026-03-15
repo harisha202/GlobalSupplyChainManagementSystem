@@ -25,6 +25,9 @@ args = _parse_args()
 # Keep tests fast + deterministic by default (no external SMTP dependency).
 if not args.real_email:
     os.environ.setdefault("MOCK_EMAIL_DELIVERY", "true")
+    # OTP endpoints now only echo the OTP on failure by default.
+    # For deterministic smoke tests, explicitly request OTP in the response.
+    os.environ.setdefault("EXPOSE_OTP_IN_RESPONSE", "true")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import run  # noqa: E402

@@ -13,7 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, auth, blockchain, dealer, inventory, manufacturer, tracking
+from app.api import admin, auth, blockchain, chat, dealer, inventory, manufacturer, tracking
 from app.core.config import ConfigurationError, get_settings, validate_settings
 from app.api.tracking import get_tracking_socket_payload
 from app.services.database_service import DatabaseError, check_database_connection, initialize_database
@@ -44,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(blockchain.router, prefix="/api")
     app.include_router(dealer.router, prefix="/api")
     app.include_router(inventory.router, prefix="/api")
+    app.include_router(chat.router, prefix="/api")
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -89,13 +90,33 @@ def create_app() -> FastAPI:
             db_info = check_database_connection()
         except DatabaseError:
             response.status_code = 503
-            return {"status": "degraded", "env": settings.app_env, "database": "unavailable"}
+            return {
+                "status": "degraded",
+                "env": settings.app_env,
+                "database": "unavailable",
+                "email": {
+                    "mock": settings.mock_email_delivery,
+                    "smtp_server": settings.smtp_server,
+                    "smtp_port": settings.smtp_port,
+                    "sender_email": settings.sender_email,
+                    "has_password": bool(settings.sender_password.strip()),
+                },
+                "ai": {"claude_enabled": bool(settings.anthropic_api_key)},
+            }
 
         return {
             "status": "ok",
             "env": settings.app_env,
             "database": "connected",
             "database_path": db_info["path"],
+            "email": {
+                "mock": settings.mock_email_delivery,
+                "smtp_server": settings.smtp_server,
+                "smtp_port": settings.smtp_port,
+                "sender_email": settings.sender_email,
+                "has_password": bool(settings.sender_password.strip()),
+            },
+            "ai": {"claude_enabled": bool(settings.anthropic_api_key)},
         }
 
     @app.websocket("/ws/gps")
@@ -145,7 +166,9 @@ if __name__ == "__main__":
             test_socket.close()
         return True, None
 
-    default_reload = "true" if os.getenv("APP_ENV", "development").strip().lower() == "development" else "false"
+    # Default reload OFF to avoid Windows reload instability and to keep in-memory OTP state stable.
+    # Enable explicitly with: $env:UVICORN_RELOAD="true"
+    default_reload = "false"
     reload_enabled = os.getenv("UVICORN_RELOAD", default_reload).strip().lower() in {"1", "true", "yes", "on"}
     host = os.getenv("UVICORN_HOST", "127.0.0.1")
     port = int(os.getenv("UVICORN_PORT", "8000"))
