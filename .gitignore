@@ -31,6 +31,7 @@ err.log
 node_modules/
 frontend/dist/
 frontend/.env.local
+frontend/.npm-cache/
 
 # OS
 .DS_Store

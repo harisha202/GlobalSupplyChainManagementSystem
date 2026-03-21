@@ -1,10 +1,7 @@
 import { getAuthState, logout } from '../store/useAuthStore'
 import { normalizeCurrencyString } from '../utils/currency'
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? 'http://127.0.0.1:8000/api' : '/api')
-).replace(/\/+$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '')
 const ENABLE_DEMO_FALLBACK = String(import.meta.env.VITE_ENABLE_DEMO_FALLBACK || '').toLowerCase() === 'true'
 
 function buildUrl(path) {
@@ -610,35 +607,35 @@ function buildRetailSalesAnalytics(period = 'week') {
     period: isMonth ? 'month' : 'week',
     trend: buildLabeledSeries(labels, isMonth ? 2600 : 3100, isMonth ? 38 : 120, isMonth ? 170 : 210),
     topProducts: [
-      { product: 'N95 Mask Box', units: 186, revenue: '$8,560', growth: '+12%' },
-      { product: 'Surgical Gloves', units: 149, revenue: '$6,705', growth: '+8%' },
-      { product: 'Digital Thermometer', units: 118, revenue: '$4,980', growth: '+6%' },
-      { product: 'IV Set Standard', units: 96, revenue: '$3,740', growth: '+5%' },
-      { product: 'Home Care Kit', units: 72, revenue: '$3,120', growth: '+9%' },
+      { product: 'N95 Mask Box', units: 186, revenue: 'INR 8,560', growth: '+12%' },
+      { product: 'Surgical Gloves', units: 149, revenue: 'INR 6,705', growth: '+8%' },
+      { product: 'Digital Thermometer', units: 118, revenue: 'INR 4,980', growth: '+6%' },
+      { product: 'IV Set Standard', units: 96, revenue: 'INR 3,740', growth: '+5%' },
+      { product: 'Home Care Kit', units: 72, revenue: 'INR 3,120', growth: '+9%' },
     ],
     recentTransactions: [
-      { id: 'TXN-9041', time: '10:12', items: 4, amount: '$186.40', payment: 'Card', status: 'Completed' },
-      { id: 'TXN-9042', time: '10:27', items: 2, amount: '$91.98', payment: 'UPI', status: 'Completed' },
-      { id: 'TXN-9043', time: '10:44', items: 6, amount: '$212.50', payment: 'Cash', status: 'Completed' },
-      { id: 'TXN-9044', time: '11:03', items: 3, amount: '$134.97', payment: 'Card', status: 'Completed' },
-      { id: 'TXN-9045', time: '11:18', items: 5, amount: '$245.00', payment: 'Wallet', status: 'Completed' },
+      { id: 'TXN-9041', time: '10:12', items: 4, amount: 'INR 186.40', payment: 'Card', status: 'Completed' },
+      { id: 'TXN-9042', time: '10:27', items: 2, amount: 'INR 91.98', payment: 'UPI', status: 'Completed' },
+      { id: 'TXN-9043', time: '10:44', items: 6, amount: 'INR 212.50', payment: 'Cash', status: 'Completed' },
+      { id: 'TXN-9044', time: '11:03', items: 3, amount: 'INR 134.97', payment: 'Card', status: 'Completed' },
+      { id: 'TXN-9045', time: '11:18', items: 5, amount: 'INR 245.00', payment: 'Wallet', status: 'Completed' },
     ],
     salesStats: {
-      today: '$3,940',
-      week: '$23,870',
-      month: '$97,420',
-      avgTransaction: '$142.86',
+      today: 'INR 3,940',
+      week: 'INR 23,870',
+      month: 'INR 97,420',
+      avgTransaction: 'INR 142.86',
     },
   }
 }
 
 const FALLBACK_DEALER_RECENT_ORDERS = {
   orders: [
-    { orderId: 'DL-3321', retailer: 'Nova Med', amount: '$2,460', status: 'Dispatched', date: '2026-02-15' },
-    { orderId: 'DL-3322', retailer: 'CareHub', amount: '$1,810', status: 'Pending', date: '2026-02-14' },
-    { orderId: 'DL-3323', retailer: 'Prime Labs', amount: '$4,105', status: 'Delivered', date: '2026-02-13' },
-    { orderId: 'DL-3324', retailer: 'HealthFirst', amount: '$3,250', status: 'Dispatched', date: '2026-02-12' },
-    { orderId: 'DL-3325', retailer: 'MediCare Plus', amount: '$1,980', status: 'Pending', date: '2026-02-11' },
+    { orderId: 'DL-3321', retailer: 'Nova Med', amount: 'INR 2,460', status: 'Dispatched', date: '2026-02-15' },
+    { orderId: 'DL-3322', retailer: 'CareHub', amount: 'INR 1,810', status: 'Pending', date: '2026-02-14' },
+    { orderId: 'DL-3323', retailer: 'Prime Labs', amount: 'INR 4,105', status: 'Delivered', date: '2026-02-13' },
+    { orderId: 'DL-3324', retailer: 'HealthFirst', amount: 'INR 3,250', status: 'Dispatched', date: '2026-02-12' },
+    { orderId: 'DL-3325', retailer: 'MediCare Plus', amount: 'INR 1,980', status: 'Pending', date: '2026-02-11' },
   ],
 }
 

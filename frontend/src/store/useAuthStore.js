@@ -97,12 +97,13 @@ export function useAuthStore(selector = selectAuthState) {
   )
 }
 
-export function setUserSession({ user, role }) {
+export function setUserSession({ user, role, token, access_token, accessToken } = {}) {
+  const resolvedToken = token ?? access_token ?? accessToken ?? user?.token ?? null
   setAuthState({
     user: normalizeUser(user || null),
     role: role || null,
     isGuest: false,
-    token: user?.token || null,
+    token: resolvedToken,
   })
 }
 

@@ -19,6 +19,10 @@ from app.api.tracking import get_tracking_socket_payload
 from app.services.database_service import DatabaseError, check_database_connection, initialize_database
 from app.services.notification_service import notification_service
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
 logger = logging.getLogger("global_supply_chain_api")
 
 
@@ -29,9 +33,13 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title=settings.app_name)
 
+    app.state.limiter = auth.limiter
+    app.add_middleware(SlowAPIMiddleware)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=list(settings.cors_origins),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

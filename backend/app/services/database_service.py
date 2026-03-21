@@ -4,7 +4,6 @@ import json
 import logging
 import math
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +27,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.core.config import get_settings
+from app.core.security import hash_password, is_password_hash
 
 
 class DatabaseError(RuntimeError):
@@ -42,6 +42,7 @@ metadata = MetaData()
 logger = logging.getLogger("global_supply_chain_db")
 
 _ACTIVE_DATABASE_URL: str | None = None
+_ENGINE: Engine | None = None
 
 users_table = Table(
     "users",
@@ -224,9 +225,13 @@ def _current_database_url() -> str:
     return _ACTIVE_DATABASE_URL or _normalize_database_url()
 
 
-@lru_cache
 def _engine() -> Engine:
     global _ACTIVE_DATABASE_URL
+    global _ENGINE
+
+    if _ENGINE is not None:
+        return _ENGINE
+
     primary_url = _normalize_database_url()
     try:
         primary_engine = create_engine(
@@ -237,7 +242,8 @@ def _engine() -> Engine:
         with primary_engine.connect():
             pass
         _ACTIVE_DATABASE_URL = primary_url
-        return primary_engine
+        _ENGINE = primary_engine
+        return _ENGINE
     except SQLAlchemyError as primary_exc:
         logger.warning("Primary database %s failed, falling back to SQLite: %s", primary_url, primary_exc)
         fallback_url = _normalize_database_url(prefer_sqlite=True)
@@ -250,9 +256,24 @@ def _engine() -> Engine:
             with fallback_engine.connect():
                 pass
             _ACTIVE_DATABASE_URL = fallback_url
-            return fallback_engine
+            _ENGINE = fallback_engine
+            return _ENGINE
         except SQLAlchemyError as fallback_exc:
             raise DatabaseError("Unable to initialize database engine") from fallback_exc
+
+
+def reset_engine_for_tests() -> None:
+    global _ACTIVE_DATABASE_URL
+    global _ENGINE
+
+    if _ENGINE is not None:
+        try:
+            _ENGINE.dispose()
+        except Exception:
+            pass
+
+    _ENGINE = None
+    _ACTIVE_DATABASE_URL = None
 
 
 def _row_to_dict(row: Any) -> dict:
@@ -326,40 +347,52 @@ def _seed_defaults() -> None:
                     {
                         "name": "System Admin",
                         "email": "admin@globalsupply.com",
-                        "password_hash": "admin123",
+                        "password_hash": hash_password("admin123"),
                         "role": "admin",
                         "created_at": now,
                     },
                     {
                         "name": "Manufacturer",
                         "email": "manufacturer@globalsupply.com",
-                        "password_hash": "maker123",
+                        "password_hash": hash_password("maker123"),
                         "role": "manufacturer",
                         "created_at": now,
                     },
                     {
                         "name": "Transporter",
                         "email": "transporter@globalsupply.com",
-                        "password_hash": "transport123",
+                        "password_hash": hash_password("transport123"),
                         "role": "transporter",
                         "created_at": now,
                     },
                     {
                         "name": "Dealer",
                         "email": "dealer@globalsupply.com",
-                        "password_hash": "dealer123",
+                        "password_hash": hash_password("dealer123"),
                         "role": "dealer",
                         "created_at": now,
                     },
                     {
                         "name": "Retail",
                         "email": "retail@globalsupply.com",
-                        "password_hash": "retail123",
+                        "password_hash": hash_password("retail123"),
                         "role": "retail_shop",
                         "created_at": now,
                     },
                 ],
             )
+        else:
+            # Migrate legacy plaintext passwords that may exist in older demo databases.
+            rows = conn.execute(select(users_table.c.id, users_table.c.password_hash)).fetchall()
+            for row in rows:
+                user_id = int(row._mapping["id"])
+                stored = str(row._mapping.get("password_hash") or "")
+                if stored and not is_password_hash(stored):
+                    conn.execute(
+                        users_table.update()
+                        .where(users_table.c.id == user_id)
+                        .values(password_hash=hash_password(stored))
+                    )
 
         product_count = conn.execute(select(func.count()).select_from(products_table)).scalar() or 0
         if product_count == 0:
@@ -385,6 +418,8 @@ def _seed_defaults() -> None:
 
         shipment_count = conn.execute(select(func.count()).select_from(shipments_table)).scalar() or 0
         if shipment_count == 0:
+            eta_one = (now + timedelta(hours=6)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            eta_two = (now + timedelta(hours=8)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
             conn.execute(
                 shipments_table.insert(),
                 [
@@ -396,7 +431,7 @@ def _seed_defaults() -> None:
                         "status": "in_transit",
                         "origin": "Mumbai, MH",
                         "destination": "Bengaluru, KA",
-                        "eta": "2026-03-03T14:30:00Z",
+                        "eta": eta_one,
                         "weight": 1260.0,
                         "vehicle_number": "MH12AB4321",
                         "assignment_status": "Assigned",
@@ -410,7 +445,7 @@ def _seed_defaults() -> None:
                         "status": "delayed",
                         "origin": "Delhi, DL",
                         "destination": "Jaipur, RJ",
-                        "eta": "2026-03-03T16:15:00Z",
+                        "eta": eta_two,
                         "weight": 980.0,
                         "vehicle_number": "DL05CD7788",
                         "assignment_status": "Assigned",
@@ -418,6 +453,38 @@ def _seed_defaults() -> None:
                     },
                 ],
             )
+        else:
+            def _parse_eta(value: str | None) -> datetime | None:
+                raw = str(value or "").strip()
+                if not raw:
+                    return None
+                try:
+                    raw = raw.replace("Z", "+00:00")
+                    parsed = datetime.fromisoformat(raw)
+                except ValueError:
+                    return None
+                if parsed.tzinfo is None:
+                    return parsed.replace(tzinfo=timezone.utc)
+                return parsed
+
+            seeded = conn.execute(
+                select(shipments_table.c.shipment_id, shipments_table.c.eta)
+                .where(shipments_table.c.shipment_id.in_(["SHP-1001", "SHP-1002"]))
+            ).fetchall()
+            eta_one = (now + timedelta(hours=6)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            eta_two = (now + timedelta(hours=8)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            eta_map = {"SHP-1001": eta_one, "SHP-1002": eta_two}
+            for row in seeded:
+                shipment_id = str(row._mapping.get("shipment_id") or "").strip()
+                current_eta = _parse_eta(row._mapping.get("eta"))
+                if not shipment_id or current_eta is None:
+                    continue
+                if current_eta < now:
+                    conn.execute(
+                        shipments_table.update()
+                        .where(shipments_table.c.shipment_id == shipment_id)
+                        .values(eta=eta_map.get(shipment_id))
+                    )
 
         order_count = conn.execute(select(func.count()).select_from(orders_table)).scalar() or 0
         if order_count == 0:
@@ -547,6 +614,26 @@ def create_user(name: str, email: str, password_hash: str, role: str) -> dict:
         "role": role,
         "created_at": created_at,
     }
+
+
+def set_user_role(*, email: str, role: str) -> dict | None:
+    normalized_email = str(email).strip().lower()
+    try:
+        with _engine().begin() as conn:
+            result = conn.execute(
+                users_table.update()
+                .where(users_table.c.email == normalized_email)
+                .values(role=role)
+            )
+            if not result.rowcount:
+                return None
+
+            row = conn.execute(
+                select(users_table).where(users_table.c.email == normalized_email)
+            ).first()
+            return _row_to_dict(row) if row else None
+    except SQLAlchemyError as exc:
+        raise DatabaseError("Failed to update user role") from exc
 
 
 def is_account_locked(user_id: int) -> bool:

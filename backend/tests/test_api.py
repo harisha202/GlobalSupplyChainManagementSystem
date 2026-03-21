@@ -1,11 +1,13 @@
+import os
+
 import pytest
-from httpx import AsyncClient
-
-from run import app
-
-
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
+# Tests should never require a real SMTP connection.
+os.environ.setdefault("MOCK_EMAIL_DELIVERY", "true")
+
+from run import app  # noqa: E402
 
 @pytest_asyncio.fixture
 async def async_client():

@@ -10,6 +10,7 @@ from pathlib import Path
 class Settings:
     app_name: str
     app_env: str
+    cors_origins: tuple[str, ...]
     secret_key: str
     jwt_algorithm: str
     access_token_expire_minutes: int
@@ -113,6 +114,9 @@ def validate_settings(settings: Settings) -> None:
     if env in {"prod", "production"} and settings.secret_key == "change-me-in-env":
         errors.append("SECRET_KEY must be set in production")
 
+    if env in {"prod", "production"} and ("*" in settings.cors_origins):
+        errors.append("CORS origins must not include '*' in production")
+
     if errors:
         raise ConfigurationError("; ".join(errors))
 
@@ -125,9 +129,15 @@ def get_settings() -> Settings:
     # Default to real email unless MOCK_EMAIL_DELIVERY is explicitly enabled.
     default_mock_email = "false" if mock_env is None else mock_env
 
+    cors_raw = (os.getenv("ALLOWED_ORIGINS") or os.getenv("CORS_ORIGINS") or "").strip()
+    cors_origins = tuple(origin.strip() for origin in cors_raw.split(",") if origin.strip())
+    if not cors_origins:
+        cors_origins = ("http://localhost:5173", "http://127.0.0.1:5173")
+
     return Settings(
         app_name=os.getenv("APP_NAME", "Global Supply Chain API"),
         app_env=app_env,
+        cors_origins=cors_origins,
         secret_key=os.getenv("SECRET_KEY", "change-me-in-env"),
         jwt_algorithm=os.getenv("JWT_ALGORITHM", "HS256"),
         access_token_expire_minutes=_to_int("ACCESS_TOKEN_EXPIRE_MINUTES", "60"),

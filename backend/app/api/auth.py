@@ -10,10 +10,10 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
 from pydantic import BaseModel, Field
-from passlib.context import CryptContext
 
 from app.core.config import get_settings
 from app.core.middleware import get_current_payload, require_roles
+from app.core.security import hash_password, verify_password
 from app.models.user import UserRole
 from app.services.database_service import (
     DatabaseConflictError,
@@ -21,13 +21,13 @@ from app.services.database_service import (
     create_guest_entry,
     create_user,
     get_user_by_email,
+    set_user_role,
     record_failed_login,
     reset_failed_logins,
     is_account_locked,
 )
 from app.services.email_service import get_email_service
 from app.services.otp_service import OTPService
-from app.services.state_service import users
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -40,14 +40,6 @@ logger = logging.getLogger(__name__)
 
 otp_service = OTPService()
 email_service = get_email_service()
-
-pwd_context = CryptContext(
-    # Prefer PBKDF2 to avoid bcrypt's 72-byte password limit and Windows bcrypt backend quirks.
-    # Keep bcrypt available for verifying any existing bcrypt hashes.
-    schemes=["pbkdf2_sha256", "bcrypt"],
-    deprecated="auto",
-    pbkdf2_sha256__default_rounds=120000
-)
 
 
 class LoginRequest(BaseModel):
@@ -141,22 +133,6 @@ def normalize_role(role: UserRole | str) -> UserRole:
     return UserRole(normalized)
 
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def verify_password(plain_password: str, stored_password: str) -> bool:
-    # Backward compatibility for plain text seeded users.
-    # Passlib hashes always begin with "$" (e.g. "$2b$..." or "$pbkdf2-sha256$...").
-    if not str(stored_password or "").startswith("$"):
-        return stored_password == plain_password
-
-    try:
-        return pwd_context.verify(plain_password, stored_password)
-    except Exception:
-        return False
-
-
 def create_access_token(subject: str, role: UserRole) -> str:
     settings = get_settings()
     now = datetime.now(timezone.utc)
@@ -199,7 +175,7 @@ def _build_otp_response(data: SendOTPRequest) -> dict:
             detail="Database temporarily unavailable",
         ) from exc
 
-    if email in users or existing_user is not None:
+    if existing_user is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
@@ -277,7 +253,7 @@ def signup(data: SignupRequest) -> LoginResponse:
             detail="Database temporarily unavailable",
         ) from exc
 
-    if email in users or existing_user is not None:
+    if existing_user is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
@@ -307,14 +283,6 @@ def signup(data: SignupRequest) -> LoginResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database temporarily unavailable",
         ) from exc
-
-    users[email] = {
-        "email": email,
-        "name": data.name,
-        "password": password_hash,
-        "role": data.role,
-        "db_id": db_user["id"],
-    }
 
     token = create_access_token(subject=email, role=data.role)
     refresh = create_refresh_token(subject=email, role=data.role)
@@ -391,31 +359,9 @@ async def login(request: Request) -> LoginResponse:
             },
         )
 
-    user = users.get(email)
-    if user is None or not verify_password(data.password, user["password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-        )
-
-    user_role = normalize_role(user["role"])
-    if user_role != data.role:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Selected role does not match user role",
-        )
-
-    token = create_access_token(subject=email, role=user_role)
-    refresh = create_refresh_token(subject=email, role=user_role)
-    return LoginResponse(
-        access_token=token,
-        refresh_token=refresh,
-        role=user_role,
-        user={
-            "email": user["email"],
-            "name": normalize_display_name(user["name"], fallback="User"),
-            "role": user_role,
-        },
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid credentials",
     )
 
 
@@ -462,11 +408,16 @@ def assign_role(
     payload: dict = Depends(require_roles(UserRole.admin)),
 ) -> RoleAssignmentResponse:
     email = normalize_email(data.email)
-    target = users.get(email)
+    try:
+        target = set_user_role(email=email, role=data.role.value)
+    except DatabaseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database temporarily unavailable",
+        ) from exc
     if target is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    target["role"] = data.role
     return RoleAssignmentResponse(
         email=email,
         role=data.role,
@@ -479,14 +430,6 @@ def me(payload: dict = Depends(get_current_payload)) -> dict:
     email = payload.get("sub")
     if not email:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-    user = users.get(email)
-    if user is not None:
-        return {
-            "email": user["email"],
-            "name": normalize_display_name(user["name"], fallback="User"),
-            "role": normalize_role(user["role"]),
-        }
 
     try:
         db_user = get_user_by_email(email)

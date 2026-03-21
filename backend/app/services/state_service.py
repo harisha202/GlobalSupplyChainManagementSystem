@@ -1,40 +1,5 @@
 from __future__ import annotations
 
-from app.models.user import UserRole
-
-users: dict[str, dict] = {
-    "admin@globalsupply.com": {
-        "email": "admin@globalsupply.com",
-        "name": "System Admin",
-        "password": "admin123",
-        "role": UserRole.admin,
-    },
-    "manufacturer@globalsupply.com": {
-        "email": "manufacturer@globalsupply.com",
-        "name": "Manufacturer",
-        "password": "maker123",
-        "role": UserRole.manufacturer,
-    },
-    "transporter@globalsupply.com": {
-        "email": "transporter@globalsupply.com",
-        "name": "Transporter",
-        "password": "transport123",
-        "role": UserRole.transporter,
-    },
-    "dealer@globalsupply.com": {
-        "email": "dealer@globalsupply.com",
-        "name": "Dealer",
-        "password": "dealer123",
-        "role": UserRole.dealer,
-    },
-    "retail@globalsupply.com": {
-        "email": "retail@globalsupply.com",
-        "name": "Retail",
-        "password": "retail123",
-        "role": UserRole.retail_shop,
-    },
-}
-
 products: list[dict] = [
     {"id": 1, "sku": "N95-KIT", "name": "N95 Safety Kit", "quantity": 1200, "price": 42.5},
     {"id": 2, "sku": "IV-SET", "name": "IV Set", "quantity": 760, "price": 15.0},
