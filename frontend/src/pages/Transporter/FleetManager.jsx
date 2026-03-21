@@ -207,7 +207,7 @@ function DriverDetailPanel({ vehicle, onClose }) {
           borderColor: vehicle.hasGps ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.2)',
           color: vehicle.hasGps ? '#34d399' : '#64748b',
         }}>
-          {vehicle.hasGps ? 'ðŸ“¡ Live GPS' : 'ðŸ“µ No Signal'}
+          {vehicle.hasGps ? 'Live GPS' : 'No Signal'}
         </span>
       </div>
 
@@ -418,7 +418,7 @@ function FleetManager({ shipments = {} }) {
               { key: 'all', label: `All (${counts.all})` },
               { key: 'active', label: `Active (${counts.active})` },
               { key: 'delayed', label: `Delayed (${counts.delayed})`, cls: 'delayed-btn' },
-              { key: 'gps', label: `ðŸ“¡ Live GPS (${counts.gps})` },
+              { key: 'gps', label: `Live GPS (${counts.gps})` },
             ].map(({ key, label, cls = '' }) => (
               <button
                 key={key}

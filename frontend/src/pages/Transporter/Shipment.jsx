@@ -179,7 +179,7 @@ function ShipmentDetailPanel({ row, onClose }) {
               border: `1px solid ${row.hasGps ? 'rgba(16,185,129,0.3)' : 'rgba(100,116,139,0.18)'}`,
               color: row.hasGps ? '#34d399' : '#64748b',
             }}>
-              {row.hasGps ? '📡 Live GPS' : '📵 No Signal'}
+              {row.hasGps ? 'Live GPS' : 'No Signal'}
             </span>
           </div>
         </div>

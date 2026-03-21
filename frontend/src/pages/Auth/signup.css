@@ -166,8 +166,8 @@ main.auth-scene.auth-signup-theme {
   backdrop-filter: blur(60px) saturate(1.8) brightness(0.9);
   -webkit-backdrop-filter: blur(60px) saturate(1.8) brightness(0.9);
   border-radius: var(--su-radius-panel);
-  padding: 52px 44px;
-  max-width: 460px;
+  padding: 56px 48px;
+  max-width: 580px;
   width: 100%;
   box-shadow: var(--su-shadow-panel);
   border: 1px solid var(--su-border-faint);
@@ -616,6 +616,39 @@ main.auth-scene.auth-signup-theme {
   margin-top: 28px;
   position: relative;
   z-index: 1;
+}
+
+/* Switch row (Login) */
+.auth-signup-panel .auth-switch-row {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--su-text-mid);
+  position: relative;
+  z-index: 1;
+}
+
+.auth-signup-panel .auth-switch-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--su-cyan);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  transition: color var(--su-t-snap), text-shadow var(--su-t-snap);
+}
+
+.auth-signup-panel .auth-switch-link:hover:not(:disabled) {
+  color: #ffffff;
+  text-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+}
+
+.auth-signup-panel .auth-switch-link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* ================================================================

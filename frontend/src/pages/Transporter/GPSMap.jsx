@@ -83,7 +83,7 @@ function DriverPanel({ point, onClose }) {
         </span>
         {point.hasGps && (
           <span className="gps-badge gps-badge-gps">
-            ðŸ“¡ Live GPS
+            Live GPS
           </span>
         )}
       </div>

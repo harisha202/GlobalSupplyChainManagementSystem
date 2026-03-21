@@ -259,7 +259,7 @@
 /* ── Grid ───────────────────────────────────────────────────────── */
 .role-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
   margin-bottom: 44px;
 }
@@ -273,7 +273,7 @@
   );
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  padding: 36px 24px 28px;
+  padding: 40px 24px 30px;
   border-radius: var(--rs-radius-card);
   border: 1px solid var(--rs-border);
   box-shadow:
@@ -288,7 +288,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 230px;
+  min-height: 250px;
   animation: rsRevealUp 0.9s cubic-bezier(0.23, 1, 0.32, 1) both;
   transform-style: preserve-3d;
 }

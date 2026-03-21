@@ -266,6 +266,10 @@ function App() {
       <Signup
         role={pendingRole}
         onBack={() => setScreen(entryIntent === 'signup' ? 'role-selection' : 'login')}
+        onLoginClick={() => {
+          setEntryIntent('login')
+          setScreen('login')
+        }}
         onSubmit={async ({ name, email, password }) => {
           const data = await authApi.signup({
             name,

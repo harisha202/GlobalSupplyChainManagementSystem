@@ -171,8 +171,8 @@ button { appearance: none; cursor: pointer; font-family: var(--a-font-body); }
   backdrop-filter: blur(60px) saturate(1.9) brightness(0.88);
   -webkit-backdrop-filter: blur(60px) saturate(1.9) brightness(0.88);
   border-radius: var(--a-radius-panel);
-  padding: 52px 48px;
-  max-width: 480px;
+  padding: 56px 48px;
+  max-width: 580px;
   width: 100%;
   border: 1px solid var(--a-border);
   box-shadow: var(--a-shadow-panel);

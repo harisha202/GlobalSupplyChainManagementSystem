@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { authApi } from '../../api/axiosInstance'
 import './signup.css'
 
-function Signup({ role, onSubmit, onBack }) {
+function Signup({ role, onSubmit, onBack, onLoginClick }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -312,6 +312,18 @@ function Signup({ role, onSubmit, onBack }) {
             Back
           </button>
         </div>
+
+        <p className="auth-switch-row">
+          Already have an account?{' '}
+          <button
+            type="button"
+            className="auth-switch-link"
+            onClick={onLoginClick || onBack}
+            disabled={isLoading}
+          >
+            Log in
+          </button>
+        </p>
       </form>
 
       {showOtpModal && (

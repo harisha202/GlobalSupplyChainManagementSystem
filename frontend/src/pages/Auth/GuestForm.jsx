@@ -106,7 +106,7 @@ function GuestForm({ role, onSubmit, onBack }) {
             {isLoading ? 'Accessing...' : 'Continue as Guest'}
           </button>
           <button type="button" onClick={onBack} disabled={isLoading} className="auth-btn-ghost">
-            Back to HomePage
+            Back to Roles
           </button>
         </div>
 

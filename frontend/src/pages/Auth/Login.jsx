@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './auth.css'
 
-function Login({ role, onSubmit, onBack, onSignupClick }) {
+function Login({ role, onSubmit, onBack, onSignupClick, onGuestClick }) {
   const [email,     setEmail]    = useState('')
   const [password,  setPassword] = useState('')
   const [showPass,  setShowPass] = useState(false)
@@ -118,6 +118,17 @@ function Login({ role, onSubmit, onBack, onSignupClick }) {
             className="auth-btn-primary"
           >
             {isLoading ? 'Signing in...' : 'Login'}
+          </button>
+
+          {/* GUEST */}
+          <button
+            type="button"
+            onClick={onGuestClick}
+            disabled={isLoading}
+            className="auth-btn-guest"
+          >
+            <span className="btn-guest-icon">👤</span>
+            Continue as Guest
           </button>
 
           {/* BACK */}

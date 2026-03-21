@@ -173,7 +173,7 @@ function TransporterDashboard({
   )
 
   const stats = [
-    { label: 'Vehicles Active', value: metrics.activeVehicles, trend: isSocketConnected ? 'WebSocket live' : 'API snapshot' },
+      { label: 'Vehicles Active', value: metrics.activeVehicles, trend: isSocketConnected ? 'Live' : 'Snapshot' },
     { label: 'On-Time Deliveries', value: metrics.onTimeDeliveries, trend: `${100 - metrics.delayRate}% healthy` },
     { label: 'Delayed Routes', value: metrics.delayed, trend: 'Live alert source' },
     { label: 'Fleet In Transit', value: metrics.inTransit, trend: 'Live shipment state' },
@@ -221,10 +221,7 @@ function TransporterDashboard({
               <h4 className="card-title">Live Alerts</h4>
               <div className="shipments-controls">
                 <span className={`tracking-chip ${isSocketConnected ? 'live' : 'offline'}`}>
-                  {isSocketConnected ? 'WebSocket live' : 'WebSocket reconnecting'}
-                </span>
-                <span className="tracking-chip">
-                  {alertFeed.length} Active | Last sync: {lastSocketUpdate ? formatAlertTimestamp(lastSocketUpdate) : '--'}
+                  {isSocketConnected ? 'Live updates' : 'Updates offline'}
                 </span>
               </div>
             </div>

@@ -234,7 +234,7 @@ function Arrivals({ user, onLogout, onNavigate, currentPath }) {
   const stats = useMemo(() => {
     const received = shipments.filter((s) => s.status === 'Received').length
     return [
-      { label: 'In Transit', value: shipmentStatusData[0].value, trend: isSocketConnected ? 'WebSocket live' : 'Polling' },
+      { label: 'In Transit', value: shipmentStatusData[0].value, trend: isSocketConnected ? 'Live' : 'Polling' },
       { label: 'Arriving Today', value: shipmentStatusData[1].value, trend: 'Live ETA' },
       { label: 'Delayed', value: shipmentStatusData[2].value, trend: 'Needs attention' },
       { label: 'Received', value: received, trend: 'Completed' },

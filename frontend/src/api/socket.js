@@ -1,9 +1,16 @@
 let gpsSocket = null
 let notificationSocket = null
 let reconnectTimer = null
+let notificationReconnectTimer = null
+let notificationDisconnectTimer = null
+let notificationPingTimer = null
 let reconnectEnabled = true
 let lastConnectOptions = null
 let reconnectAttempts = 0
+let notificationReconnectEnabled = true
+let notificationLastConnectOptions = null
+let notificationReconnectAttempts = 0
+let notificationActiveUserId = null
 
 const RECONNECT_DELAY_MS = Number(import.meta.env.VITE_GPS_SOCKET_RECONNECT_MS ?? 2500)
 const MAX_RECONNECT_DELAY_MS = Number(import.meta.env.VITE_GPS_SOCKET_MAX_DELAY_MS ?? 15000)
@@ -11,6 +18,8 @@ const MAX_RECONNECT_ATTEMPTS = Number(
   import.meta.env.VITE_GPS_SOCKET_MAX_RETRIES ??
     (import.meta.env.DEV ? 8 : Number.POSITIVE_INFINITY),
 )
+
+const NOTIFICATION_PING_MS = Number(import.meta.env.VITE_NOTIFICATION_SOCKET_PING_MS ?? 20000)
 
 function toSocketUrl(httpUrl) {
   const normalized = String(httpUrl || '').trim()
@@ -84,6 +93,27 @@ function clearReconnectTimer() {
   }
 }
 
+function clearNotificationReconnectTimer() {
+  if (notificationReconnectTimer) {
+    clearTimeout(notificationReconnectTimer)
+    notificationReconnectTimer = null
+  }
+}
+
+function clearNotificationDisconnectTimer() {
+  if (notificationDisconnectTimer) {
+    clearTimeout(notificationDisconnectTimer)
+    notificationDisconnectTimer = null
+  }
+}
+
+function clearNotificationPingTimer() {
+  if (notificationPingTimer) {
+    clearInterval(notificationPingTimer)
+    notificationPingTimer = null
+  }
+}
+
 function parseSocketMessage(rawData) {
   if (typeof rawData !== 'string') {
     return rawData
@@ -112,6 +142,28 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
     connectGpsSocket(lastConnectOptions, { isReconnect: true })
+  }, delay)
+}
+
+function scheduleNotificationReconnect() {
+  if (!notificationReconnectEnabled || notificationReconnectTimer || !notificationLastConnectOptions) {
+    return
+  }
+
+  if (Number.isFinite(MAX_RECONNECT_ATTEMPTS) && notificationReconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    notificationReconnectEnabled = false
+    return
+  }
+
+  notificationReconnectAttempts += 1
+  const backoffMultiplier = Math.max(1, notificationReconnectAttempts)
+  const delay = Math.min(RECONNECT_DELAY_MS * backoffMultiplier, MAX_RECONNECT_DELAY_MS)
+
+  notificationReconnectTimer = setTimeout(() => {
+    notificationReconnectTimer = null
+    const options = notificationLastConnectOptions
+    if (!options) return
+    connectNotificationSocket(options.userId, options.handlers, { isReconnect: true })
   }, delay)
 }
 
@@ -188,10 +240,29 @@ export function getGpsSocket() {
   return gpsSocket
 }
 
-export function connectNotificationSocket(userId, { onMessage, onOpen, onClose } = {}) {
+export function connectNotificationSocket(userId, { onMessage, onOpen, onClose } = {}, { isReconnect = false } = {}) {
   const normalizedUser = String(userId || '').trim()
   if (!normalizedUser) {
     return null
+  }
+
+  clearNotificationDisconnectTimer()
+  notificationReconnectEnabled = true
+  notificationLastConnectOptions = { userId: normalizedUser, handlers: { onMessage, onOpen, onClose } }
+  if (!isReconnect) {
+    notificationReconnectAttempts = 0
+  }
+
+  if (notificationActiveUserId && notificationActiveUserId !== normalizedUser) {
+    try {
+      notificationSocket?.close()
+    } catch {
+      // Ignore socket close errors.
+    }
+    notificationSocket = null
+    notificationActiveUserId = null
+    clearNotificationPingTimer()
+    clearNotificationReconnectTimer()
   }
 
   if (
@@ -205,10 +276,25 @@ export function connectNotificationSocket(userId, { onMessage, onOpen, onClose }
   try {
     notificationSocket = new WebSocket(url)
   } catch {
+    scheduleNotificationReconnect()
     return null
   }
 
+  notificationActiveUserId = normalizedUser
+
   notificationSocket.addEventListener('open', (event) => {
+    clearNotificationReconnectTimer()
+    notificationReconnectAttempts = 0
+    clearNotificationPingTimer()
+    notificationPingTimer = setInterval(() => {
+      try {
+        if (notificationSocket?.readyState === WebSocket.OPEN) {
+          notificationSocket.send('ping')
+        }
+      } catch {
+        // Ignore send errors; close handler will reconnect.
+      }
+    }, NOTIFICATION_PING_MS)
     if (onOpen) onOpen(event)
   })
 
@@ -218,7 +304,10 @@ export function connectNotificationSocket(userId, { onMessage, onOpen, onClose }
 
   notificationSocket.addEventListener('close', (event) => {
     notificationSocket = null
+    notificationActiveUserId = null
+    clearNotificationPingTimer()
     if (onClose) onClose(event)
+    scheduleNotificationReconnect()
   })
 
   notificationSocket.addEventListener('error', () => {
@@ -233,8 +322,29 @@ export function connectNotificationSocket(userId, { onMessage, onOpen, onClose }
 }
 
 export function disconnectNotificationSocket() {
-  if (notificationSocket) {
-    notificationSocket.close()
-    notificationSocket = null
+  notificationReconnectEnabled = false
+  notificationLastConnectOptions = null
+  notificationReconnectAttempts = 0
+  clearNotificationReconnectTimer()
+  clearNotificationPingTimer()
+
+  if (!notificationSocket) {
+    notificationActiveUserId = null
+    clearNotificationDisconnectTimer()
+    return
   }
+
+  // Avoid rapid close/open churn when navigating between pages that re-mount the dashboard shell.
+  // If a reconnect is requested quickly, the disconnect timer is cleared in connectNotificationSocket().
+  clearNotificationDisconnectTimer()
+  notificationDisconnectTimer = setTimeout(() => {
+    try {
+      notificationSocket?.close()
+    } catch {
+      // Ignore socket close errors.
+    }
+    notificationSocket = null
+    notificationActiveUserId = null
+    notificationDisconnectTimer = null
+  }, 350)
 }
