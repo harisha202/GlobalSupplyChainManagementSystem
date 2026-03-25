@@ -6,6 +6,50 @@ function normalizeScanCode(value = '') {
   return String(value).trim().toUpperCase()
 }
 
+function extractSkuFromScan(value = '') {
+  const raw = String(value ?? '').trim()
+  if (!raw) {
+    return ''
+  }
+
+  if (raw.startsWith('{') && raw.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(raw)
+      const sku = parsed?.productSku || parsed?.sku || parsed?.product_sku
+      if (sku) {
+        return String(sku)
+      }
+    } catch {
+      // ignore invalid JSON scans
+    }
+  }
+
+  const pathMatch = raw.match(/\/blockchain\/(?:journey-summary|journey|qr)\/([^?#/]+)/i)
+  if (pathMatch?.[1]) {
+    try {
+      return decodeURIComponent(pathMatch[1])
+    } catch {
+      return String(pathMatch[1])
+    }
+  }
+
+  try {
+    const url = new URL(raw)
+    const sku = url.searchParams.get('productSku') || url.searchParams.get('sku') || url.searchParams.get('product_sku')
+    if (sku) {
+      return sku
+    }
+    const urlPathMatch = url.pathname.match(/\/blockchain\/(?:journey-summary|journey|qr)\/([^/#]+)/i)
+    if (urlPathMatch?.[1]) {
+      return decodeURIComponent(urlPathMatch[1])
+    }
+  } catch {
+    // ignore non-URL scans
+  }
+
+  return raw
+}
+
 function normalizeScannerProducts(products = []) {
   return products.map((item, index) => {
     const sku = String(item.id || item.sku || `SKU-${index + 1}`)
@@ -138,53 +182,72 @@ function Scanner({ products = [] }) {
   }, [etaTargetTime])
 
   const handleScan = (code) => {
-    const normalizedCode = normalizeScanCode(code)
+    const normalizedCode = normalizeScanCode(extractSkuFromScan(code))
     setIsScanning(true)
     setScannedCode(normalizedCode)
 
     // Simulate scanning delay
     setTimeout(() => {
-      const result = productByCode[normalizedCode]
-      if (result) {
-        setScanResult({
-          ...result,
-          loadingBlockchain: true,
-          qrImageUrl: '',
-          journey: [],
-          aiSummary: '',
-          aiHighlight: '',
-          aiStage: '',
-        })
-        Promise.all([
-          blockchainApi.qr(result.sku || normalizedCode),
-          blockchainApi.journey(result.sku || normalizedCode),
-          blockchainApi.journeySummary(result.sku || normalizedCode),
-        ])
-          .then(([qrPayload, journeyPayload, summaryPayload]) => {
-            setScanResult((prev) => ({
-              ...(prev || result),
-              loadingBlockchain: false,
-              qrImageUrl: qrPayload?.qrImageUrl || '',
-              journey: Array.isArray(journeyPayload?.journey) ? journeyPayload.journey : [],
-              aiSummary: summaryPayload?.summary?.summary || '',
-              aiHighlight: summaryPayload?.summary?.highlight || '',
-              aiStage: summaryPayload?.summary?.keyStage || '',
-            }))
-          })
-          .catch(() => {
-            setScanResult((prev) => ({
-              ...(prev || result),
-              loadingBlockchain: false,
-              qrImageUrl: '',
-              journey: [],
-            }))
-          })
-      } else {
-        setScanResult({
-          error: true,
-          message: 'Product not found in database',
-        })
+      const knownProduct = productByCode[normalizedCode]
+      const baseProduct = knownProduct || {
+        sku: normalizedCode,
+        code: normalizedCode,
+        aliases: [],
+        name: normalizedCode || 'Unknown product',
+        manufacturer: 'Supply Network',
+        batchNumber: 'N/A',
+        expiryDate: 'N/A',
+        verified: false,
+        origin: 'Supply Network',
+        certifications: [],
       }
+
+      if (!normalizedCode) {
+        setScanResult({ error: true, message: 'Please scan a valid product code.' })
+        setIsScanning(false)
+        return
+      }
+
+      setScanResult({
+        ...baseProduct,
+        loadingBlockchain: true,
+        qrImageUrl: '',
+        journey: [],
+        aiSummary: '',
+        aiHighlight: '',
+        aiStage: '',
+      })
+
+      Promise.all([
+        blockchainApi.qr(baseProduct.sku),
+        blockchainApi.journey(baseProduct.sku),
+        blockchainApi.journeySummary(baseProduct.sku),
+      ])
+        .then(([qrPayload, journeyPayload, summaryPayload]) => {
+          const resolvedJourney = Array.isArray(journeyPayload?.journey) ? journeyPayload.journey : []
+          setScanResult((prev) => ({
+            ...(prev || baseProduct),
+            loadingBlockchain: false,
+            qrImageUrl: qrPayload?.qrImageUrl || '',
+            journey: resolvedJourney,
+            aiSummary: summaryPayload?.summary?.summary || '',
+            aiHighlight: summaryPayload?.summary?.highlight || '',
+            aiStage: summaryPayload?.summary?.keyStage || '',
+            error: resolvedJourney.length === 0 && !qrPayload?.qrImageUrl,
+            message: resolvedJourney.length === 0 ? 'No blockchain journey found for this code yet.' : '',
+          }))
+        })
+        .catch(() => {
+          setScanResult((prev) => ({
+            ...(prev || baseProduct),
+            loadingBlockchain: false,
+            qrImageUrl: '',
+            journey: [],
+            error: true,
+            message: 'Failed to load blockchain data for this code.',
+          }))
+        })
+
       setIsScanning(false)
     }, 1000)
   }
@@ -222,7 +285,7 @@ function Scanner({ products = [] }) {
             <input
               type="text"
               className="search-input"
-              placeholder="Enter code (e.g., N95-KIT, IV-SET)"
+              placeholder="Enter SKU / paste QR text (e.g., N95-KIT)"
               value={scannedCode}
               onChange={(e) => setScannedCode(e.target.value)}
             />

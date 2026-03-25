@@ -145,7 +145,7 @@ Windows PowerShell note: if you see `npm` blocked by execution policy, run `npm.
 - `UVICORN_LOG_LEVEL` (default: `warning`)
 - `UVICORN_ACCESS_LOG` (default: `false`)
 
-Providing the `ANTHROPIC_API_KEY` enables the backend AI helpers to call Claude; when the key is missing they gracefully return the mean-based baselines defined in `app/services/ai_service.py`.
+Providing the `ANTHROPIC_API_KEY` enables the backend AI helpers to call Claude; when the key is missing they gracefully return the mean-based baselines defined in `app/services/ai_service.py`. If the key is invalid (HTTP `401/403`), the backend temporarily disables AI calls for ~10 minutes to avoid log spam; fix the key and restart the backend.
 - `MOCK_EMAIL_DELIVERY` (default in this repo: `false`). When `true`, emails are printed to the console instead of sending. When `false`, thank-you emails and OTP emails send via SMTP; failures are logged and `/api/auth/feedback` returns `email_sent: false` + `email_error` instead of failing the request.
 - `SMTP_SERVER`, `SMTP_PORT`, `SENDER_EMAIL`, `SENDER_PASSWORD`, `SENDER_NAME`
 
@@ -188,6 +188,35 @@ If you still see `EMAIL MOCK` in the backend logs while `MOCK_EMAIL_DELIVERY=fal
 For local development you can skip Postgres entirely: leave `DATABASE_URL` unset and the backend uses SQLite via `SQLITE_DB_PATH=local.db` (or copy `backend/.env.example` to `backend/.env`).
 
 OTP note: the backend does **not** include the OTP in the `/api/auth/send-otp` response by default. If SMTP delivery fails, it returns `503` so you fix SMTP and the OTP actually reaches the inbox. For local testing only, you can set `EXPOSE_OTP_IN_RESPONSE=true` to include `otp` in the response payload.
+
+### Email (Real SMTP via Gmail App Password)
+
+To enable real OTP + feedback emails (instead of mock/console delivery):
+
+1. Create a local env file (never commit this):
+
+   ```powershell
+   Copy-Item backend/.env.example backend/.env
+   ```
+
+2. Edit `backend/.env` and set:
+   - `MOCK_EMAIL_DELIVERY=false`
+   - `SMTP_SERVER=smtp.gmail.com`
+   - `SMTP_PORT=587`
+   - `SENDER_EMAIL=<your gmail address>`
+   - `SENDER_PASSWORD=<16-char Gmail App Password>` (spaces are OK; the backend strips them)
+
+3. Restart the backend (`cd backend; python run.py`).
+
+Gmail App Password steps (Google Account):
+1. Enable 2‑Step Verification on the Gmail account.
+2. Open Google Account → Security → "App passwords".
+3. Create a new app password for "Mail" (or a custom app name like "Global Supply Chain").
+4. Copy the 16‑character app password and paste it into `backend/.env` as `SENDER_PASSWORD`.
+
+Troubleshooting:
+- If SMTP fails with `WinError 10013`, your network/firewall is blocking outbound SMTP (ports `587`/`465`). Allow Python through Windows Defender Firewall or try a different network (e.g. mobile hotspot).
+- Run `cd backend; python scripts/smtp_check.py --to you@example.com --dry-run` to validate connectivity without sending.
 ## Full Stack Run Order
 
 1. Start backend first (creates/updates SQLite DB tables automatically):
@@ -330,3 +359,4 @@ Dashboard pages and the API functions they use:
 - In development, OTP value may be returned in API response for easier testing.
 - Frontend API layer includes fallbacks for guest mode and unavailable endpoints.
 - WebSocket connections are used for live GPS + notifications even if the UI doesn’t show a “WebSocket live” label.
+ 

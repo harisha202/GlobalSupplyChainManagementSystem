@@ -3,35 +3,131 @@ import './roleselection.css'
 const ROLES = [
   {
     id: 'Admin',
-    icon: '👨‍💼',
+    letter: 'A',
     title: 'Admin',
     description: 'Full system control and oversight',
   },
   {
     id: 'Manufacturer',
-    icon: '🏭',
+    letter: 'M',
     title: 'Manufacturer',
     description: 'Production and batch management',
   },
   {
     id: 'Transporter',
-    icon: '🚚',
+    letter: 'T',
     title: 'Transporter',
     description: 'Fleet tracking and logistics',
   },
   {
     id: 'Dealer',
-    icon: '🤝',
+    letter: 'D',
     title: 'Dealer',
     description: 'Distribution and wholesale',
   },
   {
     id: 'RetailShop',
-    icon: '🏪',
+    letter: 'R',
     title: 'Retail Shop',
     description: 'POS and inventory management',
   },
 ]
+
+function getRoleCssKey(roleId) {
+  const normalized = String(roleId || '').trim().toLowerCase()
+  const map = {
+    admin: 'admin',
+    manufacturer: 'supplier',
+    transporter: 'logistics',
+    dealer: 'retailer',
+    retailshop: 'analyst',
+  }
+  return map[normalized] || normalized
+}
+
+function RoleLogo({ roleId }) {
+  const normalized = String(roleId || '').trim().toLowerCase()
+  const shared = {
+    className: 'role-card-logo-svg',
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+    'aria-hidden': 'true',
+    focusable: 'false',
+  }
+
+  const fill = {
+    fill: 'currentColor',
+    opacity: 0.18,
+  }
+
+  const stroke = {
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+  }
+
+  if (normalized === 'admin') {
+    return (
+      <svg {...shared}>
+        <path {...fill} d="M12 2l7 4v6c0 5-3 9-7 10C8 21 5 17 5 12V6l7-4z" />
+        <path {...stroke} d="M12 2l7 4v6c0 5-3 9-7 10C8 21 5 17 5 12V6l7-4z" />
+        <path {...stroke} d="M9.5 12l1.8 1.8L14.8 10" />
+      </svg>
+    )
+  }
+
+  if (normalized === 'manufacturer') {
+    return (
+      <svg {...shared}>
+        <path {...fill} d="M3 21V10l6 3v-3l6 3v-3l6 3v8H3z" />
+        <path {...stroke} d="M3 21V10l6 3v-3l6 3v-3l6 3v8H3z" />
+        <path {...stroke} d="M7 21v-4" />
+        <path {...stroke} d="M11 21v-4" />
+        <path {...stroke} d="M15 21v-4" />
+      </svg>
+    )
+  }
+
+  if (normalized === 'transporter') {
+    return (
+      <svg {...shared}>
+        <path {...fill} d="M3 17V7h11v10H3z" />
+        <path {...fill} d="M14 11h4l3 3v3h-7v-6z" />
+        <path {...stroke} d="M3 17V7h11v10H3z" />
+        <path {...stroke} d="M14 11h4l3 3v3h-7v-6z" />
+        <path {...stroke} d="M7 17a2 2 0 1 0 0.01 0" />
+        <path {...stroke} d="M18 17a2 2 0 1 0 0.01 0" />
+      </svg>
+    )
+  }
+
+  if (normalized === 'dealer') {
+    return (
+      <svg {...shared}>
+        <path {...fill} d="M4 10h16l-1 10H5L4 10z" />
+        <path {...stroke} d="M4 10h16l-1 10H5L4 10z" />
+        <path {...stroke} d="M3 10l2-6h14l2 6" />
+        <path {...stroke} d="M9 20v-6h6v6" />
+      </svg>
+    )
+  }
+
+  if (normalized === 'retailshop') {
+    return (
+      <svg {...shared}>
+        <path {...fill} d="M6 6h15l-2 8H7L6 6z" />
+        <path {...stroke} d="M6 6h15l-2 8H7L6 6z" />
+        <path {...stroke} d="M6 6L5 3H3" />
+        <path {...stroke} d="M9 20a1.5 1.5 0 1 0 0.01 0" />
+        <path {...stroke} d="M18 20a1.5 1.5 0 1 0 0.01 0" />
+      </svg>
+    )
+  }
+
+  return null
+}
 
 function RoleSelection({ selectedRole, onSelectRole, onSelect, onBack, includeAdmin = true }) {
   const handleSelect = onSelectRole || onSelect
@@ -62,12 +158,18 @@ function RoleSelection({ selectedRole, onSelectRole, onSelect, onBack, includeAd
                 type="button"
                 onClick={() => handleSelect?.(role.id)}
                 className={`role-card ${active ? 'active' : ''}`}
+                data-role={getRoleCssKey(role.id)}
+                aria-pressed={active}
               >
-                <div className="role-card-icon">{role.icon}</div>
+                <div className="role-card-icon" aria-hidden="true">
+                  <span className="role-card-letter">{role.letter}</span>
+                  <span className="role-card-logo">
+                    <RoleLogo roleId={role.id} />
+                  </span>
+                </div>
                 <h3 className="role-card-title">{role.title}</h3>
                 <p className="role-card-description">{role.description}</p>
-                <div className="role-card-arrow">→</div>
-                {active && <div className="role-card-checkmark">✓</div>}
+                <div className="role-card-arrow">{'>'}</div>
               </button>
             )
           })}
@@ -75,7 +177,7 @@ function RoleSelection({ selectedRole, onSelectRole, onSelect, onBack, includeAd
 
         <div className="role-selection-actions">
           <button type="button" onClick={onBack} className="btn-back">
-            ← Back to Homepage
+            Back to Homepage
           </button>
         </div>
 

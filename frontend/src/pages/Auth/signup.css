@@ -166,8 +166,8 @@ main.auth-scene.auth-signup-theme {
   backdrop-filter: blur(60px) saturate(1.8) brightness(0.9);
   -webkit-backdrop-filter: blur(60px) saturate(1.8) brightness(0.9);
   border-radius: var(--su-radius-panel);
-  padding: 56px 48px;
-  max-width: 580px;
+  padding: 64px 56px;
+  max-width: 680px;
   width: 100%;
   box-shadow: var(--su-shadow-panel);
   border: 1px solid var(--su-border-faint);
@@ -415,12 +415,12 @@ main.auth-scene.auth-signup-theme {
 
 .auth-signup-panel .auth-field-input {
   width: 100%;
-  padding: 13px 16px;
+  padding: 16px 18px;
   background: var(--su-bg-input);
   border: 1px solid var(--su-border-faint);
   border-radius: var(--su-radius-input);
   font-family: var(--su-font-body);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
   color: var(--su-text-bright);
   box-shadow: var(--su-shadow-input);
@@ -467,7 +467,7 @@ main.auth-scene.auth-signup-theme {
 }
 
 .auth-signup-panel .auth-password-wrapper .auth-field-input {
-  padding-right: 80px;
+  padding-right: 96px;
   flex: 1;
 }
 
@@ -659,7 +659,7 @@ main.auth-scene.auth-signup-theme {
   position: relative;
   overflow: hidden;
   width: 100%;
-  padding: 15px 24px;
+  padding: 17px 26px;
   background: transparent;
   border: 1px solid var(--su-cyan-border);
   border-radius: var(--su-radius-btn);
@@ -752,7 +752,7 @@ main.auth-scene.auth-signup-theme {
 
 .auth-signup-panel .auth-btn-ghost {
   width: 100%;
-  padding: 13px 24px;
+  padding: 17px 26px;
   background: transparent;
   border: 1px solid var(--su-border-faint);
   border-radius: var(--su-radius-btn);

@@ -3,7 +3,6 @@ import { adminApi } from '../../api/axiosInstance'
 import AreaChart from '../../components/charts/AreaChart'
 import PieChart from '../../components/charts/PieChart'
 import Loader from '../../components/common/Loader'
-import Table from '../../components/common/Table'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import { formatINR } from '../../utils/currency'
 import './admin.css'
@@ -60,12 +59,6 @@ function AdminDashboard({ user, onLogout, onNavigate, currentPath }) {
     [summary],
   )
 
-  const rows = [
-    { name: 'Admin API', role: 'System', status: 'Connected' },
-    { name: 'Manufacturer API', role: 'Supply', status: 'Connected' },
-    { name: 'Tracking API', role: 'Transport', status: 'Connected' },
-  ]
-
   return (
     <DashboardLayout
       role="Admin"
@@ -91,17 +84,6 @@ function AdminDashboard({ user, onLogout, onNavigate, currentPath }) {
             { label: 'Dealers', value: 14, color: '#22c55e' },
             { label: 'Retail', value: 12, color: '#64748b' },
           ]}
-        />
-      </section>
-      <section style={{ marginTop: 14 }}>
-        <Table
-          columns={[
-            { key: 'name', label: 'User' },
-            { key: 'role', label: 'Role' },
-            { key: 'status', label: 'Status' },
-          ]}
-          rows={rows}
-          emptyMessage="No users found"
         />
       </section>
     </DashboardLayout>

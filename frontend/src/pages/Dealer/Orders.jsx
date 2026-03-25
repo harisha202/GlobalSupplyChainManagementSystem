@@ -201,9 +201,6 @@ function Orders({ user, onLogout, onNavigate, currentPath }) {
     >
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 24, margin: 0 }}>End-to-End Order Pipeline</h2>
-        <p style={{ color: '#6b7280', margin: '4px 0 0 0' }}>
-          Retail {'>'} Dealer {'>'} Manufacturer {'>'} Transporter {'>'} Dealer {'>'} Retail
-        </p>
       </div>
 
       {errorMessage && (

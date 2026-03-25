@@ -173,8 +173,8 @@ button { appearance: none; cursor: pointer; font-family: var(--g-font-body); }
   backdrop-filter: blur(60px) saturate(1.9) brightness(0.88);
   -webkit-backdrop-filter: blur(60px) saturate(1.9) brightness(0.88);
   border-radius: var(--g-radius-panel);
-  padding: 56px 48px;
-  max-width: 580px;
+  padding: 64px 56px;
+  max-width: 680px;
   width: 100%;
   border: 1px solid var(--g-border);
   box-shadow: var(--g-shadow-panel);
@@ -356,12 +356,12 @@ button { appearance: none; cursor: pointer; font-family: var(--g-font-body); }
 /* ── Field Input ────────────────────────────────────────────────── */
 .auth-field-input {
   width: 100%;
-  padding: 13px 16px;
+  padding: 16px 18px;
   background: var(--g-bg-input);
   border: 1px solid var(--g-border);
   border-radius: var(--g-radius-input);
   font-family: var(--g-font-body);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
   color: var(--g-text-primary);
   box-shadow: var(--g-shadow-input);
@@ -548,7 +548,7 @@ button { appearance: none; cursor: pointer; font-family: var(--g-font-body); }
   position: relative;
   overflow: hidden;
   width: 100%;
-  padding: 15px 24px;
+  padding: 17px 26px;
   background: linear-gradient(135deg, #003344 0%, #005568 30%, #007a94 55%, #009fb8 80%, #00c8d7 100%);
   color: #e8faff;
   border: 1px solid rgba(0, 200, 215, 0.32);
@@ -732,7 +732,7 @@ button { appearance: none; cursor: pointer; font-family: var(--g-font-body); }
 
 .auth-btn-ghost {
   width: 100%;
-  padding: 13px 24px;
+  padding: 17px 26px;
   background: transparent;
   color: var(--g-text-secondary);
   border: 1px solid var(--g-border);

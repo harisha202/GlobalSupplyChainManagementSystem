@@ -16,6 +16,90 @@ const ROLE_COLORS = {
 
 const DEFAULT_SPARK = [16, 20, 18, 24, 22, 28, 30]
 
+function formatNotificationTimestamp(value) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Live'
+  }
+  return parsed.toLocaleString()
+}
+
+function normalizeNotification(value) {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const id = String(value.id ?? '').trim()
+  const title = String(value.title ?? '').trim()
+  const message = String(value.message ?? '').trim()
+  if (!id && !title && !message) {
+    return null
+  }
+  return {
+    id: id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    title: title || 'Alert',
+    message: message || '',
+    severity: String(value.severity ?? 'info').toLowerCase(),
+    timestamp: String(value.timestamp ?? ''),
+    metadata: value.metadata ?? {},
+    user_id: String(value.user_id ?? ''),
+  }
+}
+
+function AlertsDrawer({ open, items = [], onClose }) {
+  if (!open) return null
+
+  return (
+    <div className="alerts-drawer-overlay" role="dialog" aria-modal="true" aria-label="Alerts">
+      <div className="alerts-drawer">
+        <div className="alerts-drawer-header">
+          <div>
+            <div className="alerts-drawer-title">Alerts</div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {items.length ? `${items.length} recent message(s)` : 'No alerts yet.'}
+            </div>
+          </div>
+          <button type="button" className="subtle-btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        <div className="alerts-drawer-body">
+          {!items.length && (
+            <div className="card" style={{ margin: 0 }}>
+              <p className="muted" style={{ margin: 0 }}>
+                No alert messages to show.
+              </p>
+            </div>
+          )}
+
+          {!!items.length && (
+            <div className="alerts-box card" style={{ margin: 0 }}>
+              {items.map((item) => (
+                <div key={item.id} className="alerts-box-item">
+                  <div className="alerts-box-head">
+                    <strong className="alerts-box-title">{item.title}</strong>
+                    <span className={`alerts-chip alerts-chip--${item.severity || 'info'}`}>
+                      {String(item.severity || 'info').toUpperCase()}
+                    </span>
+                  </div>
+                  {!!item.message && <div className="alerts-box-message">{item.message}</div>}
+                  <div className="alerts-box-meta muted">{formatNotificationTimestamp(item.timestamp)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="alerts-drawer-scrim"
+        aria-label="Close alerts"
+        onClick={onClose}
+      />
+    </div>
+  )
+}
+
 
 
 function getLinkForPath(role, path) {
@@ -41,7 +125,10 @@ function DashboardLayout({
   children,
 }) {
   const [activeLink, setActiveLink] = useState(() => getLinkForPath(role, currentPath))
-  const [liveNotificationCount, setLiveNotificationCount] = useState(Number(notifications || 0))
+  const [notificationItems, setNotificationItems] = useState([])
+  const [alertsOpen, setAlertsOpen] = useState(false)
+  const socketUserId = SOCKET_USER_BY_ROLE[role]
+  const notificationCount = socketUserId ? notificationItems.length : Number(notifications || 0)
 
   const enrichedStats = useMemo(
     () =>
@@ -58,11 +145,11 @@ function DashboardLayout({
   }, [role, currentPath])
 
   useEffect(() => {
-    setLiveNotificationCount(Number(notifications || 0))
-  }, [notifications])
+    setAlertsOpen(false)
+    setNotificationItems([])
+  }, [role])
 
   useEffect(() => {
-    const socketUserId = SOCKET_USER_BY_ROLE[role]
     if (!socketUserId) {
       return undefined
     }
@@ -71,11 +158,18 @@ function DashboardLayout({
       onMessage: (payload) => {
         if (!payload || typeof payload !== 'object') return
         if (payload.type === 'notification:init' && Array.isArray(payload.items)) {
-          setLiveNotificationCount(payload.items.length)
+          const normalized = payload.items.map(normalizeNotification).filter(Boolean)
+          setNotificationItems(normalized)
           return
         }
         if (payload.type === 'notification') {
-          setLiveNotificationCount((count) => count + 1)
+          const next = normalizeNotification(payload)
+          if (next) {
+            setNotificationItems((items) => {
+              const deduped = items.filter((item) => item.id !== next.id)
+              return [next, ...deduped].slice(0, 50)
+            })
+          }
         }
       },
     })
@@ -106,7 +200,12 @@ function DashboardLayout({
             <h3>{role} Role accessed</h3>
             <p className="muted">Active view: {activeLink}</p>
           </div>
-          <UserMenu userName={userName} notifications={liveNotificationCount} onLogout={onLogout} />
+          <UserMenu
+            userName={userName}
+            notifications={notificationCount}
+            onLogout={onLogout}
+            onOpenAlerts={() => setAlertsOpen(true)}
+          />
         </header>
 
         <main className="dashboard-content">
@@ -130,6 +229,7 @@ function DashboardLayout({
           {children}
         </main>
       </section>
+      <AlertsDrawer open={alertsOpen} items={notificationItems} onClose={() => setAlertsOpen(false)} />
     </div>
   )
 }

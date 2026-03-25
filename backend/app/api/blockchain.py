@@ -7,7 +7,8 @@ from typing import Optional
 from urllib.parse import quote
 
 import qrcode
-from fastapi import APIRouter, Depends, HTTPException
+from qrcode.exceptions import DataOverflowError
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.core.middleware import require_roles
@@ -120,7 +121,7 @@ def product_journey_summary(product_sku: str) -> dict:
 
 
 @router.get("/qr/{product_sku}", dependencies=[Depends(require_roles(UserRole.admin, UserRole.manufacturer, UserRole.dealer, UserRole.retail_shop))])
-def product_qr(product_sku: str) -> dict:
+def product_qr(product_sku: str, request: Request) -> dict:
     try:
         journey = get_product_journey(product_sku=product_sku)
     except DatabaseError as exc:
@@ -130,24 +131,50 @@ def product_qr(product_sku: str) -> dict:
         "productSku": product_sku,
         "journey": journey,
     }
-    
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(json.dumps(qr_payload, separators=(",", ":")))
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
-    qr_image_url = f"data:image/png;base64,{b64_img}"
 
+    base_url = str(request.base_url).rstrip("/")
+    journey_path = f"/api/blockchain/journey-summary/{quote(product_sku)}"
+    journey_url = f"{base_url}{journey_path}"
+    if len(journey_url) > 500:
+        journey_url = journey_path
+    qr_payload["journeyUrl"] = journey_url
+    qr_data = journey_url
+
+    def _render_qr(data: str) -> str:
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
+        return f"data:image/png;base64,{b64_img}"
+
+    qr_image_url: str | None = None
+    for candidate in (
+        qr_data,
+        json.dumps({"productSku": product_sku}, separators=(",", ":")),
+        product_sku,
+    ):
+        try:
+            qr_image_url = _render_qr(candidate)
+            qr_data = candidate
+            break
+        except (ValueError, DataOverflowError):
+            continue
+
+    if qr_image_url is None:
+        raise HTTPException(status_code=422, detail="QR payload is too large to encode")
+    
     return {
         "productSku": product_sku,
         "qrPayload": qr_payload,
+        "qrData": qr_data,
         "qrImageUrl": qr_image_url,
     }

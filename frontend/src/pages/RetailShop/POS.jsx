@@ -3,7 +3,7 @@ import { inventoryApi } from '../../api/axiosInstance'
 import BlockchainBadge from '../../components/blockchain/BlockchainBadge'
 import { formatINR } from '../../utils/currency'
 
-function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
+function POS({ products = [], userName = 'Retail Shop', onSaleComplete, onRefresh, isLoading = false, inventoryError = '' }) {
   const [cart, setCart] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
@@ -100,7 +100,19 @@ function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
     <div className="pos-container">
       <div className="pos-grid">
         <div className="card pos-catalog">
-          <h4 className="card-title">Product Catalog</h4>
+          <div className="pos-header">
+            <h4 className="card-title">Product Catalog</h4>
+            {!!onRefresh && (
+              <button type="button" className="subtle-btn" onClick={onRefresh} disabled={isLoading}>
+                {isLoading ? 'Loading…' : 'Refresh'}
+              </button>
+            )}
+          </div>
+          {!!inventoryError && (
+            <div className="pos-error-banner" role="status">
+              {inventoryError}
+            </div>
+          )}
           <input
             type="text"
             className="search-input"
@@ -109,7 +121,13 @@ function POS({ products = [], userName = 'Retail Shop', onSaleComplete }) {
             onChange={(event) => setSearchTerm(event.target.value)}
           />
           <div className="product-grid">
-            {filteredProducts.length === 0 && (
+            {isLoading && (
+              <div className="empty-cart">
+                <p>Loading products…</p>
+                <p className="empty-cart-hint">Waiting for backend inventory sync</p>
+              </div>
+            )}
+            {!isLoading && filteredProducts.length === 0 && (
               <div className="empty-cart">
                 <p>No products available</p>
                 <p className="empty-cart-hint">Inventory data will appear here after backend sync</p>

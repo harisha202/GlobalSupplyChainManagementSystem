@@ -171,8 +171,8 @@ button { appearance: none; cursor: pointer; font-family: var(--a-font-body); }
   backdrop-filter: blur(60px) saturate(1.9) brightness(0.88);
   -webkit-backdrop-filter: blur(60px) saturate(1.9) brightness(0.88);
   border-radius: var(--a-radius-panel);
-  padding: 56px 48px;
-  max-width: 580px;
+  padding: 64px 56px;
+  max-width: 680px;
   width: 100%;
   border: 1px solid var(--a-border);
   box-shadow: var(--a-shadow-panel);
@@ -331,12 +331,12 @@ button { appearance: none; cursor: pointer; font-family: var(--a-font-body); }
 /* ── Field Input ────────────────────────────────────────────────── */
 .auth-field-input {
   width: 100%;
-  padding: 13px 16px;
+  padding: 16px 18px;
   background: var(--a-bg-input);
   border: 1px solid var(--a-border);
   border-radius: var(--a-radius-input);
   font-family: var(--a-font-body);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
   color: var(--a-text-primary);
   box-shadow: var(--a-shadow-input);
@@ -386,7 +386,7 @@ button { appearance: none; cursor: pointer; font-family: var(--a-font-body); }
   align-items: center;
 }
 .auth-password-wrapper .auth-field-input {
-  padding-right: 76px;
+  padding-right: 92px;
   flex: 1;
 }
 .auth-password-toggle {
@@ -523,13 +523,13 @@ button { appearance: none; cursor: pointer; font-family: var(--a-font-body); }
   position: relative;
   overflow: hidden;
   width: 100%;
-  padding: 15px 24px;
+  padding: 17px 26px;
   background: linear-gradient(135deg, #064e3b 0%, #065f46 30%, #047857 55%, #059669 80%, #10b981 100%);
   color: #f0fdf4;
   border: 1px solid rgba(16, 185, 129, 0.3);
   border-radius: var(--a-radius-btn);
   font-family: var(--a-font-display);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: 0.05em;
   cursor: pointer;
@@ -655,13 +655,13 @@ button { appearance: none; cursor: pointer; font-family: var(--a-font-body); }
   position: relative;
   overflow: hidden;
   width: 100%;
-  padding: 13px 24px;
+  padding: 15px 26px;
   background: rgba(251, 191, 36, 0.055);
   color: var(--a-accent-amber);
   border: 1px solid rgba(251, 191, 36, 0.32);
   border-radius: var(--a-radius-btn);
   font-family: var(--a-font-body);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -707,12 +707,12 @@ button { appearance: none; cursor: pointer; font-family: var(--a-font-body); }
 
 .auth-btn-ghost {
   width: 100%;
-  padding: 13px 24px;
+  padding: 15px 26px;
   background: transparent;
   color: var(--a-text-secondary);
   border: 1px solid var(--a-border);
   border-radius: var(--a-radius-btn);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--a-t-mid);

@@ -26,13 +26,17 @@ function RetailShopDashboard({
   const [activeView, setActiveView] = useState(initialView) // overview, pos, scanner, inventory, sales
   const [isOrdering, setIsOrdering] = useState(false)
   const [orderMessage, setOrderMessage] = useState('')
+  const [inventoryError, setInventoryError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
   const loadRetailData = async () => {
     try {
+      setInventoryError('')
       const data = await inventoryApi.getInventory()
       setProducts(data?.products ?? [])
       setSalesData(data?.sales ?? [])
+    } catch (error) {
+      setInventoryError(error?.message || 'Failed to load inventory from backend.')
     } finally {
       setIsLoading(false)
     }
@@ -45,11 +49,15 @@ function RetailShopDashboard({
       try {
         const data = await inventoryApi.getInventory()
         if (mounted) {
+          setInventoryError('')
           setProducts(data?.products ?? [])
           setSalesData(data?.sales ?? [])
         }
       } catch (error) {
         console.error('Failed to load retail data:', error)
+        if (mounted) {
+          setInventoryError(error?.message || 'Failed to load inventory from backend.')
+        }
       } finally {
         if (mounted) setIsLoading(false)
       }
@@ -221,6 +229,9 @@ function RetailShopDashboard({
           products={products}
           userName={user?.name}
           onSaleComplete={loadRetailData}
+          onRefresh={loadRetailData}
+          isLoading={isLoading}
+          inventoryError={inventoryError}
         />
       )}
 

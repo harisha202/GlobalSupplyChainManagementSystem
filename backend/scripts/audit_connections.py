@@ -3,32 +3,34 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from typing import Iterable
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def _extract_frontend_paths(axios_instance_path: Path) -> set[str]:
+def _extract_frontend_operations(axios_instance_path: Path) -> set[tuple[str, str]]:
     text = axios_instance_path.read_text(encoding="utf-8")
 
     quoted = re.findall(
-        r"http\.(?:get|post|put|patch|delete)\(\s*['\"]([^'\"]+)['\"]",
+        r"http\.(get|post|put|patch|delete)\(\s*['\"]([^'\"]+)['\"]",
         text,
     )
     templated = re.findall(
-        r"http\.(?:get|post|put|patch|delete)\(\s*`([^`]+)`",
+        r"http\.(get|post|put|patch|delete)\(\s*`([^`]+)`",
         text,
     )
 
-    raw_paths: set[str] = set()
-    raw_paths.update(quoted)
-    for item in templated:
+    raw_ops: set[tuple[str, str]] = set()
+    for method, raw_path in quoted:
+        raw_ops.add((method.lower(), raw_path))
+    for method, raw_path in templated:
         # Replace ${...} chunks with a stable placeholder so we can compare to OpenAPI paths.
-        raw_paths.add(re.sub(r"\$\{[^}]+\}", "{param}", item))
+        raw_ops.add((method.lower(), re.sub(r"\$\{[^}]+\}", "{param}", raw_path)))
 
-    normalized: set[str] = set()
-    for raw in raw_paths:
+    normalized: set[tuple[str, str]] = set()
+    for method, raw in raw_ops:
         if not raw:
             continue
         if not raw.startswith("/"):
@@ -40,7 +42,7 @@ def _extract_frontend_paths(axios_instance_path: Path) -> set[str]:
         # Normalize path params: `/x/${encodeURIComponent(id)}/y` -> `/x/{param}/y`
         path = re.sub(r"/\{param\}(?=/|$)", "/{param}", path)
 
-        normalized.add(path)
+        normalized.add((method, path))
 
     return normalized
 
@@ -52,6 +54,18 @@ def _as_openapi_matcher(path: str) -> re.Pattern[str]:
     pattern = pattern.replace(re.escape("{param}"), r"[^/]+")
     pattern = re.sub(r"\\\{[^}]+\\\}", r"[^/]+", pattern)
     return re.compile(rf"^{pattern}$")
+
+
+def _iter_openapi_operations(openapi: dict) -> Iterable[tuple[str, str]]:
+    for path, item in (openapi.get("paths") or {}).items():
+        if not isinstance(item, dict):
+            continue
+        for method, spec in item.items():
+            if method.lower() not in {"get", "post", "put", "patch", "delete", "options", "head"}:
+                continue
+            if not isinstance(spec, dict):
+                continue
+            yield method.lower(), path
 
 
 def main() -> int:
@@ -67,33 +81,36 @@ def main() -> int:
     sys.path.insert(0, str(backend_root))
     import run  # noqa: E402
 
-    openapi_paths = set((run.app.openapi() or {}).get("paths", {}).keys())
-    frontend_paths = _extract_frontend_paths(axios_instance)
+    openapi = run.app.openapi() or {}
+    openapi_ops = set(_iter_openapi_operations(openapi))
+    frontend_ops = _extract_frontend_operations(axios_instance)
 
     # Frontend paths are relative to API_BASE_URL (defaults to `/api`).
-    resolved_frontend_paths = {f"/api{p}" for p in frontend_paths}
+    resolved_frontend_ops = {(method, f"/api{path}") for method, path in frontend_ops}
 
-    missing: list[str] = []
-    openapi_matchers = [(path, _as_openapi_matcher(path)) for path in openapi_paths]
-    for client_path in sorted(resolved_frontend_paths):
-        if client_path in openapi_paths:
-            continue
-        if any(matcher.match(client_path) for _, matcher in openapi_matchers):
-            continue
-        missing.append(client_path)
+    openapi_matchers = [
+        (method, path, _as_openapi_matcher(path)) for method, path in sorted(openapi_ops)
+    ]
 
-    print(f"[audit] Frontend axios paths: {len(frontend_paths)}")
-    print(f"[audit] Backend OpenAPI paths: {len(openapi_paths)}")
+    missing: list[tuple[str, str]] = []
+    for method, client_path in sorted(resolved_frontend_ops):
+        if (method, client_path) in openapi_ops:
+            continue
+        if any(m == method and matcher.match(client_path) for m, _, matcher in openapi_matchers):
+            continue
+        missing.append((method.upper(), client_path))
+
+    print(f"[audit] Frontend axios operations: {len(frontend_ops)}")
+    print(f"[audit] Backend OpenAPI operations: {len(openapi_ops)}")
     if missing:
-        print("[audit] Missing in backend OpenAPI:")
-        for item in missing:
-            print(f"  - {item}")
+        print("[audit] Missing operations in backend OpenAPI:")
+        for method, path in missing:
+            print(f"  - {method} {path}")
         return 1
 
-    print("[audit] OK: all frontend axios paths exist in backend OpenAPI.")
+    print("[audit] OK: all frontend axios operations exist in backend OpenAPI.")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -127,7 +127,6 @@ function Login({ role, onSubmit, onBack, onSignupClick, onGuestClick }) {
             disabled={isLoading}
             className="auth-btn-guest"
           >
-            <span className="btn-guest-icon">👤</span>
             Continue as Guest
           </button>
 
@@ -138,7 +137,7 @@ function Login({ role, onSubmit, onBack, onSignupClick, onGuestClick }) {
             disabled={isLoading}
             className="auth-btn-ghost"
           >
-            ← Back
+            Back
           </button>
 
         </div>

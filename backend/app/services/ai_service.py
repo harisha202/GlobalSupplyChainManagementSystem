@@ -26,6 +26,7 @@ import hashlib
 import json
 import logging
 import re
+import threading
 import time
 from dataclasses import dataclass
 from math import isfinite
@@ -51,6 +52,26 @@ _MAX_RETRIES     = 3
 _RETRY_BASE_WAIT = 1.5
 _CACHE_TTL       = 300   # seconds
 _CACHE_MAX_SIZE  = 256
+_AUTH_DISABLE_SECONDS = 600.0  # temporarily disable AI after auth failures
+_ANTHROPIC_KEY_PREFIX = "sk-ant-"
+
+_AUTH_LOCK = threading.Lock()
+_AUTH_DISABLED_UNTIL = 0.0
+
+
+def _ai_disabled() -> bool:
+    with _AUTH_LOCK:
+        return time.monotonic() < _AUTH_DISABLED_UNTIL
+
+
+def _disable_ai_for(seconds: float, *, reason: str) -> None:
+    global _AUTH_DISABLED_UNTIL
+    now = time.monotonic()
+    with _AUTH_LOCK:
+        if now < _AUTH_DISABLED_UNTIL:
+            return
+        _AUTH_DISABLED_UNTIL = now + float(seconds)
+    logger.warning("ai_service: %s (disabled for %.0fs)", reason, float(seconds))
 
 
 def _current_model() -> str:
@@ -256,6 +277,13 @@ def _get_client():
     key = (getattr(get_settings(), "anthropic_api_key", "") or "").strip()
     if not key:
         return None
+
+    # Avoid noisy auth failures when a non-Anthropic API key (e.g., Google "AIza...") is provided.
+    # Anthropic keys are typically prefixed with "sk-ant-". If the format doesn't match,
+    # treat AI as "not configured" and fall back to baselines.
+    if not key.startswith(_ANTHROPIC_KEY_PREFIX):
+        logger.debug("ai_service: ANTHROPIC_API_KEY does not look like an Anthropic key; ignoring")
+        return None
     try:
         return anthropic.Anthropic(api_key=key, timeout=_TIMEOUT)
     except TypeError:
@@ -270,6 +298,9 @@ def _call(
     use_cache: bool = True,
 ) -> str:
     """Call Claude with retry + exponential back-off + LRU cache."""
+    if _ai_disabled():
+        return ""
+
     client = _get_client()
     if client is None:
         return ""
@@ -300,16 +331,22 @@ def _call(
             time.sleep(wait)
 
         except APIStatusError as exc:
+            if exc.status_code in (401, 403):
+                _disable_ai_for(
+                    _AUTH_DISABLE_SECONDS,
+                    reason=f"AI auth failed (HTTP {exc.status_code}). Check ANTHROPIC_API_KEY",
+                )
+                return ""
             if exc.status_code in (500, 529) and attempt < _MAX_RETRIES - 1:
                 wait = _RETRY_BASE_WAIT * (2 ** attempt)
                 logger.warning("ai_service: server error %d — retry in %.1fs", exc.status_code, wait)
                 time.sleep(wait)
             else:
-                logger.error("ai_service: APIStatusError %d", exc.status_code)
+                logger.debug("ai_service: APIStatusError %d", exc.status_code)
                 return ""
 
         except APIConnectionError:
-            logger.error("ai_service: connection error (attempt %d)", attempt + 1)
+            logger.debug("ai_service: connection error (attempt %d)", attempt + 1)
             if attempt == _MAX_RETRIES - 1:
                 return ""
             time.sleep(_RETRY_BASE_WAIT)
