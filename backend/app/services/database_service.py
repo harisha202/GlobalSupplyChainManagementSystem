@@ -24,6 +24,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.core.config import get_settings
@@ -211,9 +212,24 @@ def _normalize_database_url(*, prefer_sqlite: bool = False) -> str:
     raw = str(settings.database_url or "").strip()
     if not prefer_sqlite and raw:
         if raw.startswith("postgres://"):
-            return raw.replace("postgres://", "postgresql+psycopg2://", 1)
-        if raw.startswith("postgresql://") and "+" not in raw.split("://", 1)[0]:
-            return raw.replace("postgresql://", "postgresql+psycopg2://", 1)
+            raw = raw.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif raw.startswith("postgresql://") and "+" not in raw.split("://", 1)[0]:
+            raw = raw.replace("postgresql://", "postgresql+psycopg2://", 1)
+        elif raw.startswith("postgresql://") or raw.startswith("postgresql+"):
+            raw = raw
+        else:
+            return raw
+
+        try:
+            parsed = make_url(raw)
+            host = getattr(parsed, "host", None)
+            is_postgres = parsed.get_backend_name() == "postgresql"
+            if is_postgres and host and str(host).endswith("render.com") and "sslmode" not in parsed.query:
+                parsed = parsed.update_query_dict({"sslmode": "require"})
+                return parsed.render_as_string(hide_password=False)
+        except Exception:
+            pass
+
         return raw
 
     path = _db_path()
@@ -225,6 +241,25 @@ def _current_database_url() -> str:
     return _ACTIVE_DATABASE_URL or _normalize_database_url()
 
 
+def _display_database_target(db_url: str) -> str:
+    if not db_url:
+        return ""
+
+    if db_url.startswith("sqlite"):
+        return str(_db_path())
+
+    try:
+        return make_url(db_url).render_as_string(hide_password=True)
+    except Exception:
+        # Best-effort fallback: never leak credentials in logs/health responses.
+        if "@" in db_url and "://" in db_url:
+            scheme, rest = db_url.split("://", 1)
+            if "@" in rest:
+                _, host_and_path = rest.split("@", 1)
+                return f"{scheme}://***@{host_and_path}"
+        return "<redacted>"
+
+
 def _engine() -> Engine:
     global _ACTIVE_DATABASE_URL
     global _ENGINE
@@ -233,6 +268,19 @@ def _engine() -> Engine:
         return _ENGINE
 
     primary_url = _normalize_database_url()
+    primary_display = _display_database_target(primary_url)
+    try:
+        primary_parsed = make_url(primary_url)
+        hostname = getattr(primary_parsed, "host", None)
+        if hostname and hostname.startswith("dpg-") and "." not in hostname:
+            logger.warning(
+                "DATABASE_URL host %s looks like a Render internal hostname; "
+                "it will only resolve from Render services on the same private network. "
+                "For local development, use the Render External Database URL instead.",
+                hostname,
+            )
+    except Exception:
+        pass
     try:
         primary_engine = create_engine(
             primary_url,
@@ -245,7 +293,7 @@ def _engine() -> Engine:
         _ENGINE = primary_engine
         return _ENGINE
     except SQLAlchemyError as primary_exc:
-        logger.warning("Primary database %s failed, falling back to SQLite: %s", primary_url, primary_exc)
+        logger.warning("Primary database %s failed, falling back to SQLite: %s", primary_display, primary_exc)
         fallback_url = _normalize_database_url(prefer_sqlite=True)
         try:
             fallback_engine = create_engine(
@@ -569,7 +617,7 @@ def check_database_connection() -> dict:
         with _engine().connect() as conn:
             conn.execute(select(1)).scalar()
             db_url = _current_database_url()
-            return {"ok": True, "path": str(_db_path()) if db_url.startswith("sqlite") else db_url}
+            return {"ok": True, "path": _display_database_target(db_url)}
     except SQLAlchemyError as exc:
         raise DatabaseError("Database connectivity check failed") from exc
 

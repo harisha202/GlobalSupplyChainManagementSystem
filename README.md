@@ -180,8 +180,10 @@ If you still see `EMAIL MOCK` in the backend logs while `MOCK_EMAIL_DELIVERY=fal
 ### Render PostgreSQL Setup
 
 1. Create a free PostgreSQL service in Render.
-2. Copy the internal/external database URL from Render.
-3. Set backend environment variable `DATABASE_URL` to that URL.
+2. Copy the correct database URL from Render:
+   - **Backend running on Render**: use the **Internal Database URL**.
+   - **Backend running on your laptop/PC**: use the **External Database URL** (typically includes a `*.render.com` hostname and may require `?sslmode=require`).
+3. Set backend environment variable `DATABASE_URL` to that URL (prefer `backend/.env` locally, or Render "Environment" variables when deployed).
 4. Keep `SQLITE_DB_PATH` only as local fallback.
 5. Restart the backend service. On startup, tables are auto-created via SQLAlchemy.
 
