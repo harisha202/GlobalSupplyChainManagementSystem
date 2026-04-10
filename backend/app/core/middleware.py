@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jose import JWTError, jwt  # type: ignore[import-untyped]
 
 from app.core.config import get_settings
 from app.models.user import UserRole
@@ -38,6 +38,8 @@ def get_current_payload(
 
 def require_roles(*allowed_roles: UserRole) -> Callable[[dict], dict]:
     allowed = {role.value if isinstance(role, UserRole) else str(role) for role in allowed_roles}
+    # Admin can access all role-protected resources.
+    allowed.add(UserRole.admin.value)
 
     def dependency(payload: dict = Depends(get_current_payload)) -> dict:
         role = payload.get("role")

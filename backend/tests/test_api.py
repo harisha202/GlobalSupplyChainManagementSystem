@@ -57,3 +57,15 @@ async def test_send_otp_success_format(async_client):
     )
     assert response.status_code == 200, f"Failed with {response.status_code}: {response.text}"
     assert "message" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_ai_routes_require_auth(async_client):
+    response = await async_client.get("/api/ai/status")
+    assert response.status_code == 401
+
+    response = await async_client.post(
+        "/api/ai/forecast-with-insights",
+        json={"product_name": "Test", "history": [10, 12, 11], "horizon": 7},
+    )
+    assert response.status_code == 401

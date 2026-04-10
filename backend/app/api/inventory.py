@@ -46,6 +46,7 @@ class SaleCreateRequest(BaseModel):
                 UserRole.retail_shop,
                 UserRole.dealer,
                 UserRole.manufacturer,
+                UserRole.transporter,
             )
         )
     ],
@@ -94,6 +95,7 @@ def get_inventory(skip: int = Query(0, ge=0), limit: int = Query(100, le=1000)) 
                 UserRole.retail_shop,
                 UserRole.dealer,
                 UserRole.manufacturer,
+                UserRole.transporter,
             )
         )
     ],
@@ -112,6 +114,7 @@ def get_sales_analytics_endpoint(time_range: str = Query("week", alias="range"))
                 UserRole.retail_shop,
                 UserRole.dealer,
                 UserRole.manufacturer,
+                UserRole.transporter,
             )
         )
     ],
@@ -165,8 +168,9 @@ def create_sale(data: SaleCreateRequest) -> dict:
             payload=payload,
         )
         if related_order:
+            related_order_code = str(related_order.get("order_code") or data.order_code or "")
             update_order_stage(
-                data.order_code,
+                related_order_code,
                 stage="sold",
                 status="sold",
             )

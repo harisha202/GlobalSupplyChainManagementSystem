@@ -6,6 +6,7 @@ import logging
 import os
 import socket
 import sys
+from typing import Any, cast
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
@@ -13,9 +14,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, auth, blockchain, dealer, inventory, manufacturer, tracking
+from app.api import admin, ai, auth, blockchain, dealer, inventory, manufacturer, tracking
 from app.core.config import ConfigurationError, get_settings, validate_settings
 from app.api.tracking import get_tracking_socket_payload
+from app.services.ai_service import ai_status
 from app.services.database_service import DatabaseError, check_database_connection, initialize_database
 from app.services.notification_service import notification_service
 
@@ -35,7 +37,10 @@ def create_app() -> FastAPI:
 
     app.state.limiter = auth.limiter
     app.add_middleware(SlowAPIMiddleware)
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(
+        RateLimitExceeded,
+        cast(Any, _rate_limit_exceeded_handler),
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -47,6 +52,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router, prefix="/api")
     app.include_router(admin.router, prefix="/api")
+    app.include_router(ai.router, prefix="/api")
     app.include_router(manufacturer.router, prefix="/api")
     app.include_router(tracking.router, prefix="/api")
     app.include_router(blockchain.router, prefix="/api")
@@ -105,10 +111,10 @@ def create_app() -> FastAPI:
                     "mock": settings.mock_email_delivery,
                     "smtp_server": settings.smtp_server,
                     "smtp_port": settings.smtp_port,
-                    "sender_email": settings.sender_email,
-                    "has_password": bool(settings.sender_password.strip()),
+                "sender_email": settings.sender_email,
+                "has_password": bool(settings.sender_password.strip()),
                 },
-                "ai": {"claude_enabled": bool(settings.anthropic_api_key)},
+                "ai": ai_status(),
             }
 
         return {
@@ -123,7 +129,7 @@ def create_app() -> FastAPI:
                 "sender_email": settings.sender_email,
                 "has_password": bool(settings.sender_password.strip()),
             },
-            "ai": {"claude_enabled": bool(settings.anthropic_api_key)},
+            "ai": ai_status(),
         }
 
     @app.websocket("/ws/gps")

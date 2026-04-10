@@ -18,8 +18,11 @@ class Settings:
     database_url: str
     sqlite_db_path: str
     blockchain_salt: str
+    ai_provider: str
     anthropic_api_key: str
     anthropic_model: str
+    gemini_api_key: str
+    gemini_model: str
     smtp_server: str
     smtp_port: int
     sender_email: str
@@ -148,8 +151,11 @@ def get_settings() -> Settings:
         database_url=os.getenv("DATABASE_URL", "").strip(),
         sqlite_db_path=os.getenv("SQLITE_DB_PATH", "local.db"),
         blockchain_salt=os.getenv("BLOCKCHAIN_SALT", "global-supply-chain-salt"),
+        ai_provider=os.getenv("AI_PROVIDER", "auto").strip().lower(),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "").strip(),
         anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-opus-4-6").strip(),
+        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip(),
         smtp_server=os.getenv("SMTP_SERVER", "smtp.gmail.com"),
         smtp_port=_to_int("SMTP_PORT", "587"),
         sender_email=os.getenv("SENDER_EMAIL", "noreply@globalsupplychain.local"),
