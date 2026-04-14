@@ -321,24 +321,20 @@ function App() {
         onBack={() => setScreen('role-selection')}
         onSubmit={async (guestData) => {
           const apiRole = ROLE_TO_API[guestData.role] || ROLE_TO_API[pendingRole] || 'dealer'
-          try {
-            const response = await authApi.guestEntry({
-              name: guestData.user?.name || 'Guest User',
-              email: guestData.user?.email || 'guest@example.com',
-              company: guestData.user?.company || 'Guest Company',
-              phone: guestData.user?.phone || 'N/A',
-              role: apiRole,
-            })
+          const response = await authApi.guestEntry({
+            name: guestData.user?.name || 'Guest User',
+            email: guestData.user?.email || 'guest@example.com',
+            company: guestData.user?.company || 'Guest Company',
+            phone: guestData.user?.phone || 'N/A',
+            role: apiRole,
+          })
 
-            if (response?.email_sent === false) {
-              const warning = response?.email_error || 'Guest account was created, but the confirmation email could not be delivered.'
-              const shouldContinue = window.confirm(`${warning}\n\nPress OK to continue as guest, or Cancel to stay on this form.`)
-              if (!shouldContinue) {
-                return
-              }
+          if (response?.email_sent === false) {
+            const warning = response?.email_error || 'Guest account was created, but the confirmation email could not be delivered.'
+            const shouldContinue = window.confirm(`${warning}\n\nPress OK to continue as guest, or Cancel to stay on this form.`)
+            if (!shouldContinue) {
+              return
             }
-          } catch (error) {
-            throw error
           }
 
           enterGuest(guestData.role, guestData.user?.name)
